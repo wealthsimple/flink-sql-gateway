@@ -202,7 +202,7 @@ under the License.
             <scope>provided</scope>
             <optional>true</optional>
         </dependency>
-
+        
         <!-- test dependencies for HiveCatalog. The exclusions should be in sync with those flink-connector-hive -->
 
         <dependency>
