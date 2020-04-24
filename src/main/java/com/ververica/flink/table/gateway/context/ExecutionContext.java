@@ -230,10 +230,9 @@ public class ExecutionContext<ClusterID> {
 		if (streamExecEnv != null) {
 			return ((StreamTableEnvironmentImpl) tableEnv).getPipeline(name);
 		} else {
-			return execEnv.createProgramPlan(name);
+			return ((BatchTableEnvironmentImpl) tableEnv).getPipeline(name);
 		}
 	}
-
 
 	/** Returns a builder for this {@link ExecutionContext}. */
 	public static Builder builder(
