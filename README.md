@@ -180,6 +180,7 @@ The following statements are supported now.
 | SHOW MODULES | List all modules |
 | USE CATALOG catalog_name | Set a catalog with given name as the current catalog |
 | USE database_name | Set a database with given name as the current database of the current catalog |
+| CREATE CATALOG catalog_name WITH (...) | Create a catalog with given properties |
 | CREATE TABLE table_name ... | Create a table with a DDL statement |
 | DROP TABLE table_name | Drop a table with given name |
 | ALTER TABLE table_name | Alter a table with given name |
