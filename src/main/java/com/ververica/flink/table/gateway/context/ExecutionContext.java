@@ -86,6 +86,7 @@ import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.util.FlinkException;
 
+import com.ververica.flink.table.gateway.utils.PipelineOptimizer;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
@@ -243,16 +244,19 @@ public class ExecutionContext<ClusterID> {
 	}
 
 	public Pipeline createPipeline(String name) {
+		Pipeline pipeline = null;
 		if (streamExecEnv != null) {
 			// special case for Blink planner to apply batch optimizations
 			// note: it also modifies the ExecutionConfig!
 			if (executor instanceof ExecutorBase) {
-				return ((ExecutorBase) executor).getStreamGraph(name);
+				pipeline = ((ExecutorBase) executor).getStreamGraph(name);
+			} else {
+				pipeline = streamExecEnv.getStreamGraph(name);
 			}
-			return streamExecEnv.getStreamGraph(name);
 		} else {
-			return execEnv.createProgramPlan(name);
+			pipeline = execEnv.createProgramPlan(name);
 		}
+		return PipelineOptimizer.optimize(this, pipeline);
 	}
 
 
