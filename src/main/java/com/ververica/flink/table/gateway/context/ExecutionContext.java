@@ -27,6 +27,7 @@ import com.ververica.flink.table.gateway.config.entries.SourceSinkTableEntry;
 import com.ververica.flink.table.gateway.config.entries.SourceTableEntry;
 import com.ververica.flink.table.gateway.config.entries.TemporalTableEntry;
 import com.ververica.flink.table.gateway.config.entries.ViewEntry;
+import com.ververica.flink.table.gateway.utils.PipelineOptimizer;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.time.Time;
@@ -86,7 +87,6 @@ import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.util.FlinkException;
 
-import com.ververica.flink.table.gateway.utils.PipelineOptimizer;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
