@@ -49,7 +49,7 @@ public class PipelineOptimizer {
 		StreamNode sourceNode = streamGraph.getStreamNode(sourceId);
 
 		Integer sourceTableParallelism = null;
-		String pattern = "Source: (\\w+)TableSource(.+)";
+		String pattern = "Source: (\\w+)TableSource\\((.+)\\)";
 		Pattern r = Pattern.compile(pattern);
 		Matcher m = r.matcher(sourceNode.getOperatorName());
 		if (m.matches()) {
@@ -90,7 +90,7 @@ public class PipelineOptimizer {
 		StreamNode sinkNode = streamGraph.getStreamNode(sinkId);
 
 		Integer sinkTableParallelism = null;
-		String pattern = "Sink: (\\w+)TableSink(.+)";
+		String pattern = "Sink: (\\w+)TableSink\\((.+)\\)";
 		Pattern r = Pattern.compile(pattern);
 		Matcher m = r.matcher(sinkNode.getOperatorName());
 		if (m.matches()) {
@@ -133,8 +133,8 @@ public class PipelineOptimizer {
 				CatalogBaseTable table = tableEnv.getCatalog(tableEnv.getCurrentCatalog()).get().getTable(new ObjectPath(tableEnv.getCurrentDatabase(), tablename));
 
 				String connectorType = table.getProperties().get(ConnectorDescriptorValidator.CONNECTOR_TYPE);
-				String schemaStr = "(" + String.join(", ", table.getSchema().getFieldNames()) + ")";
-				if (type.equalsIgnoreCase(connectorType) && schema.equals(schemaStr)) {
+				String schemaStr = String.join(", ", table.getSchema().getFieldNames());
+				if (connectorType.equalsIgnoreCase(type) && schemaStr.startsWith(schema)) {
 					matchedTableName = tablename;
 					break;
 				}
