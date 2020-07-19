@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package com.ververica.flink.table.gateway;
+package com.ververica.flink.table.gateway.deployment;
 
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.configuration.Configuration;
@@ -50,15 +50,15 @@ public class ProgramDeployer {
 	 * @param pipeline Flink {@link Pipeline} to execute
 	 */
 	public ProgramDeployer(
-		Configuration configuration,
-		String jobName,
-		Pipeline pipeline) {
+			Configuration configuration,
+			String jobName,
+			Pipeline pipeline) {
 		this.configuration = configuration;
 		this.pipeline = pipeline;
 		this.jobName = jobName;
 	}
 
-	public CompletableFuture<JobClient> deploy() {
+	public CompletableFuture<? extends JobClient> deploy() {
 		LOG.info("Submitting job {} for query {}`", pipeline, jobName);
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Submitting job {} with configuration: \n{}", pipeline, configuration);
@@ -68,7 +68,7 @@ public class ProgramDeployer {
 			throw new RuntimeException("No execution.target specified in your configuration file.");
 		}
 
-		PipelineExecutorServiceLoader executorServiceLoader = DefaultExecutorServiceLoader.INSTANCE;
+		PipelineExecutorServiceLoader executorServiceLoader = new DefaultExecutorServiceLoader();
 		final PipelineExecutorFactory executorFactory;
 		try {
 			executorFactory = executorServiceLoader.getExecutorFactory(configuration);

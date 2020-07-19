@@ -18,15 +18,15 @@
 
 package com.ververica.flink.table.gateway.operation;
 
-import com.ververica.flink.table.gateway.ProgramDeployer;
-import com.ververica.flink.table.gateway.SqlExecutionException;
 import com.ververica.flink.table.gateway.context.ExecutionContext;
 import com.ververica.flink.table.gateway.context.SessionContext;
 import com.ververica.flink.table.gateway.deployment.ClusterDescriptorAdapterFactory;
+import com.ververica.flink.table.gateway.deployment.ProgramDeployer;
 import com.ververica.flink.table.gateway.rest.result.ColumnInfo;
 import com.ververica.flink.table.gateway.rest.result.ConstantNames;
 import com.ververica.flink.table.gateway.rest.result.ResultKind;
 import com.ververica.flink.table.gateway.rest.result.ResultSet;
+import com.ververica.flink.table.gateway.utils.SqlExecutionException;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.dag.Pipeline;
@@ -34,9 +34,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.Row;
@@ -45,7 +43,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -66,12 +63,12 @@ public class InsertOperation extends AbstractJobOperation {
 
 	private boolean fetched = false;
 
-	public InsertOperation(SessionContext context, String statement) {
+	public InsertOperation(SessionContext context, String statement, String tableIdentifier) {
 		super(context);
 		this.statement = statement;
 
-		this.columnInfos = new ArrayList<>();
-		this.columnInfos.add(ColumnInfo.create(ConstantNames.AFFECTED_ROW_COUNT, new BigIntType(false)));
+		this.columnInfos = Collections.singletonList(
+			ColumnInfo.create(tableIdentifier, new BigIntType(false)));
 	}
 
 	@Override
@@ -126,12 +123,7 @@ public class InsertOperation extends AbstractJobOperation {
 		// parse and validate statement
 		try {
 			executionContext.wrapClassLoader(() -> {
-				if (tableEnv instanceof StreamTableEnvironment) {
-					((StreamTableEnvironment) tableEnv)
-						.sqlUpdate(statement, (StreamQueryConfig) executionContext.getQueryConfig());
-				} else {
-					tableEnv.sqlUpdate(statement);
-				}
+				tableEnv.sqlUpdate(statement);
 				return null;
 			});
 		} catch (Throwable t) {

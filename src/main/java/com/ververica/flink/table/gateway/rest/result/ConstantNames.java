@@ -23,21 +23,38 @@ package com.ververica.flink.table.gateway.rest.result;
  */
 public class ConstantNames {
 
+	// for statement execution
 	public static final String JOB_ID = "job_id";
-	public static final String AFFECTED_ROW_COUNT = "affected_row_count";
-	public static final String RESULT = "result";
-	public static final String MODULES = "modules";
-	public static final String CATALOG = "catalog";
-	public static final String CATALOGS = "catalogs";
-	public static final String DATABASE = "database";
-	public static final String DATABASES = "databases";
-	public static final String FUNCTIONS = "functions";
-	public static final String EXPLANATION = "explanation";
-	public static final String SCHEMA = "schema";
-	public static final String TABLES = "tables";
-	public static final String VIEWS = "views";
-	public static final String KEY = "key";
-	public static final String VALUE = "value";
 
+	// for results with SUCCESS result kind
+	public static final String RESULT = "result";
 	public static final String OK = "OK";
+
+	public static final String SHOW_MODULES_RESULT = "modules";
+
+	public static final String SHOW_CURRENT_CATALOG_RESULT = "catalog";
+
+	public static final String SHOW_CATALOGS_RESULT = "catalogs";
+
+	public static final String SHOW_CURRENT_DATABASE_RESULT = "database";
+
+	public static final String SHOW_DATABASES_RESULT = "databases";
+
+	public static final String SHOW_FUNCTIONS_RESULT = "functions";
+
+	public static final String EXPLAIN_RESULT = "explanation";
+
+	public static final String DESCRIBE_NAME = "name";
+	public static final String DESCRIBE_TYPE = "type";
+	public static final String DESCRIBE_NULL = "null";
+	public static final String DESCRIBE_KEY = "key";
+	public static final String DESCRIBE_COMPUTED_COLUMN = "computed_column";
+	public static final String DESCRIBE_WATERMARK = "watermark";
+
+	public static final String SHOW_TABLES_RESULT = "tables";
+
+	public static final String SHOW_VIEWS_RESULT = "views";
+
+	public static final String SET_KEY = "key";
+	public static final String SET_VALUE = "value";
 }

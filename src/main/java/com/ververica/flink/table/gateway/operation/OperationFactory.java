@@ -18,9 +18,9 @@
 
 package com.ververica.flink.table.gateway.operation;
 
-import com.ververica.flink.table.gateway.SqlCommandParser.SqlCommandCall;
-import com.ververica.flink.table.gateway.SqlGatewayException;
 import com.ververica.flink.table.gateway.context.SessionContext;
+import com.ververica.flink.table.gateway.operation.SqlCommandParser.SqlCommandCall;
+import com.ververica.flink.table.gateway.utils.SqlGatewayException;
 
 /**
  * The factory to create {@link Operation} based on {@link SqlCommandCall}.
@@ -40,6 +40,7 @@ public class OperationFactory {
 			case DROP_VIEW:
 				operation = new DropViewOperation(context, call.operands[0], Boolean.parseBoolean(call.operands[1]));
 				break;
+			case CREATE_CATALOG:
 			case CREATE_TABLE:
 			case DROP_TABLE:
 			case ALTER_TABLE:
@@ -71,31 +72,31 @@ public class OperationFactory {
 				break;
 			case INSERT_INTO:
 			case INSERT_OVERWRITE:
-				operation = new InsertOperation(context, call.operands[0]);
+				operation = new InsertOperation(context, call.operands[0], call.operands[1]);
 				break;
 			case SHOW_MODULES:
-				operation = new ShowModuleOperation(context);
+				operation = new ShowModulesOperation(context);
 				break;
 			case SHOW_CATALOGS:
-				operation = new ShowCatalogOperation(context);
+				operation = new ShowCatalogsOperation(context);
 				break;
 			case SHOW_CURRENT_CATALOG:
 				operation = new ShowCurrentCatalogOperation(context);
 				break;
 			case SHOW_DATABASES:
-				operation = new ShowDatabaseOperation(context);
+				operation = new ShowDatabasesOperation(context);
 				break;
 			case SHOW_CURRENT_DATABASE:
 				operation = new ShowCurrentDatabaseOperation(context);
 				break;
 			case SHOW_TABLES:
-				operation = new ShowTableOperation(context);
+				operation = new ShowTablesOperation(context);
 				break;
 			case SHOW_VIEWS:
-				operation = new ShowViewOperation(context);
+				operation = new ShowViewsOperation(context);
 				break;
 			case SHOW_FUNCTIONS:
-				operation = new ShowFunctionOperation(context);
+				operation = new ShowFunctionsOperation(context);
 				break;
 			case DESCRIBE_TABLE:
 				operation = new DescribeTableOperation(context, call.operands[0]);

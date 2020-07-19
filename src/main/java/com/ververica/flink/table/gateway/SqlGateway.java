@@ -20,9 +20,9 @@ package com.ververica.flink.table.gateway;
 
 import com.ververica.flink.table.gateway.config.Environment;
 import com.ververica.flink.table.gateway.context.DefaultContext;
-import com.ververica.flink.table.gateway.options.GatewayOptions;
-import com.ververica.flink.table.gateway.options.GatewayOptionsParser;
 import com.ververica.flink.table.gateway.rest.SqlGatewayEndpoint;
+import com.ververica.flink.table.gateway.rest.session.SessionManager;
+import com.ververica.flink.table.gateway.utils.SqlGatewayException;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
@@ -78,6 +78,7 @@ public class SqlGateway {
 		endpoint.start();
 		System.out.println("Rest endpoint started.");
 
+		//wait forever
 		new CountDownLatch(1).await();
 	}
 
@@ -151,9 +152,9 @@ public class SqlGateway {
 
 	private static void checkFlinkVersion() {
 		String flinkVersion = EnvironmentInformation.getVersion();
-		if (!flinkVersion.startsWith("1.10")) {
-			LOG.error("Only Flink-1.10 is supported now!");
-			throw new SqlGatewayException("Only Flink-1.10 is supported now!");
+		if (!flinkVersion.startsWith("1.11")) {
+			LOG.error("Only Flink-1.11 is supported now!");
+			throw new SqlGatewayException("Only Flink-1.11 is supported now!");
 		}
 	}
 

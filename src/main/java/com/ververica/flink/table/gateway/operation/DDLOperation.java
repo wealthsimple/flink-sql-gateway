@@ -18,15 +18,13 @@
 
 package com.ververica.flink.table.gateway.operation;
 
-import com.ververica.flink.table.gateway.SqlCommandParser.SqlCommand;
-import com.ververica.flink.table.gateway.SqlExecutionException;
 import com.ververica.flink.table.gateway.context.ExecutionContext;
 import com.ververica.flink.table.gateway.context.SessionContext;
+import com.ververica.flink.table.gateway.operation.SqlCommandParser.SqlCommand;
 import com.ververica.flink.table.gateway.rest.result.ResultSet;
+import com.ververica.flink.table.gateway.utils.SqlExecutionException;
 
-import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
 
 /**
  * Operation for CREATE/DROP/ALTER TABLE/DATABASE command.
@@ -48,11 +46,7 @@ public class DDLOperation implements NonJobOperation {
 		// parse and validate statement
 		try {
 			context.wrapClassLoader(() -> {
-				if (tEnv instanceof StreamTableEnvironment) {
-					((StreamTableEnvironment) tEnv).sqlUpdate(ddl, (StreamQueryConfig) context.getQueryConfig());
-				} else {
-					tEnv.sqlUpdate(ddl);
-				}
+				tEnv.sqlUpdate(ddl);
 				return null;
 			});
 		} catch (Throwable t) {
@@ -66,6 +60,9 @@ public class DDLOperation implements NonJobOperation {
 	private String getExceptionMsg() {
 		final String actionMsg;
 		switch (command) {
+			case CREATE_CATALOG:
+				actionMsg = "create a catalog";
+				break;
 			case CREATE_TABLE:
 				actionMsg = "create a table";
 				break;

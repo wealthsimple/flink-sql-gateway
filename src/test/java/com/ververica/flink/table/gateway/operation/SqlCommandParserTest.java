@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package com.ververica.flink.table.gateway;
+package com.ververica.flink.table.gateway.operation;
 
-import com.ververica.flink.table.gateway.SqlCommandParser.SqlCommand;
-import com.ververica.flink.table.gateway.SqlCommandParser.SqlCommandCall;
+import com.ververica.flink.table.gateway.operation.SqlCommandParser.SqlCommand;
+import com.ververica.flink.table.gateway.operation.SqlCommandParser.SqlCommandCall;
 
 import org.junit.Test;
 
@@ -88,21 +88,25 @@ public class SqlCommandParserTest {
 	@Test
 	public void testInsert() {
 		String query1 = "insert into MySink select * from MyTable where a > 10";
-		checkCommand(query1, SqlCommand.INSERT_INTO, query1);
+		checkCommand(query1, SqlCommand.INSERT_INTO, query1, "MySink");
 
 		String query2 = "\n -- single-line comment \n insert into MySink select * from MyTable where a > 10 " +
 			"/* multi-line comments \n more comments */ \n";
-		checkCommand(query2, SqlCommand.INSERT_INTO, query2);
+		checkCommand(query2, SqlCommand.INSERT_INTO, query2, "MySink");
+
+		String query3 = "\n -- single-line comment \n insert into MyCat.MyDb.MySink " +
+			"select * from MyTable where a > 10 /* multi-line comments \n more comments */ \n";
+		checkCommand(query3, SqlCommand.INSERT_INTO, query3, "MyCat.MyDb.MySink");
 	}
 
 	@Test
 	public void testInsertOverwrite() {
 		String query1 = "insert overwrite MySink select * from MyTable where a > 10";
-		checkCommand(query1, SqlCommand.INSERT_OVERWRITE, query1);
+		checkCommand(query1, SqlCommand.INSERT_OVERWRITE, query1, "MySink");
 
 		String query2 = "\n -- single-line comment \n insert overwrite MySink select * from MyTable where a > 10 " +
 			"/* multi-line comments \n more comments */ \n";
-		checkCommand(query2, SqlCommand.INSERT_OVERWRITE, query2);
+		checkCommand(query2, SqlCommand.INSERT_OVERWRITE, query2, "MySink");
 	}
 
 	@Test
@@ -192,6 +196,24 @@ public class SqlCommandParserTest {
 		String query2 = " \n -- single-line comment \n alter \n database MyDb set ('k1' = 'a')" +
 			"\n  /* multi-line comments */";
 		checkCommand(query2, SqlCommand.ALTER_DATABASE, query2);
+	}
+
+	@Test
+	public void testCreateCatalog() {
+		String createTestCatalog1 = "create catalog MyCat WITH ('type' = 'DependencyTest');";
+		checkCommand(createTestCatalog1, SqlCommand.CREATE_CATALOG, createTestCatalog1);
+
+		String createTestCatalog2 = " \n -- single-line comment \n create \n catalog \n MyCat;";
+		checkCommand(createTestCatalog2, SqlCommand.CREATE_CATALOG, createTestCatalog2);
+
+		String createPgCatalog1 = "CREATE CATALOG mypg WITH (" +
+				"'type' = 'jdbc'," +
+				"'default-database' = 'postgres'," +
+				"'username' = 'postgres'," +
+				"'password'= 'xxx'," +
+				"'base-url' = 'jdbc:postgresql://localhost:5432/'" +
+				")";
+		checkCommand(createPgCatalog1, SqlCommand.CREATE_CATALOG, createPgCatalog1);
 	}
 
 	@Test
