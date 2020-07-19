@@ -32,6 +32,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
@@ -40,22 +41,17 @@ import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.plugin.TemporaryClassLoaderContext;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.BatchQueryConfig;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.QueryConfig;
-import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
-import org.apache.flink.table.api.java.internal.BatchTableEnvironmentImpl;
-import org.apache.flink.table.api.java.internal.StreamTableEnvironmentImpl;
+import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.internal.BatchTableEnvironmentImpl;
+import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
@@ -81,10 +77,10 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.planner.delegation.ExecutorBase;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
@@ -95,6 +91,7 @@ import javax.annotation.Nullable;
 
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -145,9 +142,11 @@ public class ExecutionContext<ClusterID> {
 		this.flinkConfig = flinkConfig;
 
 		// create class loader
-		classLoader = FlinkUserCodeClassLoaders.parentFirst(
-			dependencies.toArray(new URL[0]),
-			this.getClass().getClassLoader());
+		classLoader = ClientUtils.buildUserCodeClassLoader(
+				dependencies,
+				Collections.emptyList(),
+				this.getClass().getClassLoader(),
+				flinkConfig);
 
 		// Initialize the TableEnvironment.
 		initializeTableEnvironment(sessionState);
@@ -200,7 +199,7 @@ public class ExecutionContext<ClusterID> {
 	 * Executes the given supplier using the execution context's classloader as thread classloader.
 	 */
 	public <R> R wrapClassLoader(Supplier<R> supplier) {
-		try (TemporaryClassLoaderContext ignored = new TemporaryClassLoaderContext(classLoader)) {
+		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
 			return supplier.get();
 		}
 	}
@@ -209,20 +208,8 @@ public class ExecutionContext<ClusterID> {
 	 * Executes the given Runnable using the execution context's classloader as thread classloader.
 	 */
 	void wrapClassLoader(Runnable runnable) {
-		try (TemporaryClassLoaderContext ignored = new TemporaryClassLoaderContext(classLoader)) {
+		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
 			runnable.run();
-		}
-	}
-
-	public QueryConfig getQueryConfig() {
-		if (streamExecEnv != null) {
-			final StreamQueryConfig config = new StreamQueryConfig();
-			final long minRetention = environment.getExecution().getMinStateRetention();
-			final long maxRetention = environment.getExecution().getMaxStateRetention();
-			config.withIdleStateRetentionTime(Time.milliseconds(minRetention), Time.milliseconds(maxRetention));
-			return config;
-		} else {
-			return new BatchQueryConfig();
 		}
 	}
 
@@ -244,17 +231,11 @@ public class ExecutionContext<ClusterID> {
 
 	public Pipeline createPipeline(String name) {
 		if (streamExecEnv != null) {
-			// special case for Blink planner to apply batch optimizations
-			// note: it also modifies the ExecutionConfig!
-			if (executor instanceof ExecutorBase) {
-				return ((ExecutorBase) executor).getStreamGraph(name);
-			}
-			return streamExecEnv.getStreamGraph(name);
+			return ((StreamTableEnvironmentImpl) tableEnv).getPipeline(name);
 		} else {
-			return execEnv.createProgramPlan(name);
+			return ((BatchTableEnvironmentImpl) tableEnv).getPipeline(name);
 		}
 	}
-
 
 	/** Returns a builder for this {@link ExecutionContext}. */
 	public static Builder builder(
@@ -300,7 +281,7 @@ public class ExecutionContext<ClusterID> {
 			commandLine);
 
 		try {
-			final ProgramOptions programOptions = new ProgramOptions(commandLine);
+			final ProgramOptions programOptions = ProgramOptions.create(commandLine);
 			final ExecutionConfigAccessor executionConfigAccessor = ExecutionConfigAccessor
 				.fromProgramOptions(programOptions, dependencies);
 			executionConfigAccessor.applyToConfiguration(executionConfig);
@@ -415,20 +396,22 @@ public class ExecutionContext<ClusterID> {
 	private void initializeTableEnvironment(@Nullable SessionState sessionState) {
 		final EnvironmentSettings settings = environment.getExecution().getEnvironmentSettings();
 		// Step 0.0 Initialize the table configuration.
-		final TableConfig config = new TableConfig();
-		environment.getConfiguration().asMap().forEach((k, v) ->
-			config.getConfiguration().setString(k, v));
+		final TableConfig config = createTableConfig();
 		final boolean noInheritedState = sessionState == null;
 		if (noInheritedState) {
 			//--------------------------------------------------------------------------------------------------------------
 			// Step.1 Create environments
 			//--------------------------------------------------------------------------------------------------------------
 			// Step 1.0 Initialize the CatalogManager if required.
-			final CatalogManager catalogManager = new CatalogManager(
-				settings.getBuiltInCatalogName(),
-				new GenericInMemoryCatalog(
+			final CatalogManager catalogManager = CatalogManager.newBuilder()
+				.classLoader(classLoader)
+				.config(config.getConfiguration())
+				.defaultCatalog(
 					settings.getBuiltInCatalogName(),
-					settings.getBuiltInDatabaseName()));
+					new GenericInMemoryCatalog(
+						settings.getBuiltInCatalogName(),
+						settings.getBuiltInDatabaseName()))
+				.build();
 			// Step 1.1 Initialize the ModuleManager if required.
 			final ModuleManager moduleManager = new ModuleManager();
 			// Step 1.2 Initialize the FunctionCatalog if required.
@@ -474,6 +457,16 @@ public class ExecutionContext<ClusterID> {
 				sessionState.moduleManager,
 				sessionState.functionCatalog);
 		}
+	}
+
+	private TableConfig createTableConfig() {
+		final TableConfig config = new TableConfig();
+		ExecutionEntry entry = environment.getExecution();
+		config.setIdleStateRetentionTime(
+			Time.milliseconds(entry.getMinStateRetention()),
+			Time.milliseconds(entry.getMaxStateRetention()));
+		environment.getConfiguration().asMap().forEach((k, v) -> config.getConfiguration().setString(k, v));
+		return config;
 	}
 
 	private void createTableEnvironment(

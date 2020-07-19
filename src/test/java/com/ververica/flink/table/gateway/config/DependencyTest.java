@@ -77,7 +77,6 @@ import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATA
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
 import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Mainly for testing classloading of dependencies.
@@ -144,7 +143,6 @@ public class DependencyTest {
 	 * Table source that can be discovered if classloading is correct.
 	 */
 	public static class TestTableSourceFactory extends TestTableSourceFactoryBase {
-
 		public TestTableSourceFactory() {
 			super(CONNECTOR_TYPE_VALUE, TEST_PROPERTY);
 		}
@@ -154,7 +152,6 @@ public class DependencyTest {
 	 * Table sink that can be discovered if classloading is correct.
 	 */
 	public static class TestTableSinkFactory extends TestTableSinkFactoryBase {
-
 		public TestTableSinkFactory() {
 			super(CONNECTOR_TYPE_VALUE, TEST_PROPERTY);
 		}
@@ -260,10 +257,6 @@ public class DependencyTest {
 
 		@Override
 		public Catalog createCatalog(String name, Map<String, String> properties) {
-			// Test HiveCatalogFactory.createCatalog
-			// But not use it for testing purpose
-			assertTrue(super.createCatalog(name, properties) != null);
-
 			// Developers may already have their own production/testing hive-site.xml set in their environment,
 			// and Flink tests should avoid using those hive-site.xml.
 			// Thus, explicitly create a testing HiveConf for unit tests here
