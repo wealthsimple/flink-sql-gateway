@@ -21,7 +21,7 @@ under the License.
 
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>flink-sql-gateway</artifactId>
+    <artifactId>flink-sql-gateway_${flink.version}</artifactId>
     <groupId>com.ververica</groupId>
     <name>flink-sql-gateway</name>
     <version>0.1-SNAPSHOT</version>
