@@ -5,7 +5,7 @@ test:
 deploy:
   stage: deploy
   only:
-  - qihoo@big-data/flink-sql-gateway
+  - qihoo-1.10@big-data/flink-sql-gateway
   script:
   - mvn clean deploy 
 
