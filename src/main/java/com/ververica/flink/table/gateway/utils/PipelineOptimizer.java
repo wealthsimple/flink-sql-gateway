@@ -15,6 +15,8 @@ import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -132,7 +134,9 @@ public class PipelineOptimizer {
 			try {
 				CatalogBaseTable table = tableEnv.getCatalog(tableEnv.getCurrentCatalog()).get().getTable(new ObjectPath(tableEnv.getCurrentDatabase(), tablename));
 
-				String connectorType = table.getProperties().get(ConnectorDescriptorValidator.CONNECTOR_TYPE);
+				Map<String, String> tableOptions = table.getOptions();
+				String connectorType = Optional.of(tableOptions.get(ConnectorDescriptorValidator.CONNECTOR))
+						.orElse(tableOptions.get(ConnectorDescriptorValidator.CONNECTOR_TYPE));
 				String schemaStr = String.join(", ", table.getSchema().getFieldNames());
 				if (connectorType.equalsIgnoreCase(type) && schemaStr.startsWith(schema)) {
 					matchedTableName = tablename;
