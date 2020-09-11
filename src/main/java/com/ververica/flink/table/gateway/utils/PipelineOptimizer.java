@@ -105,7 +105,7 @@ public class PipelineOptimizer {
             value = props.get(formatParallelismKey(dbTableQualifier, type));
             if (value == null) {
                 if (legacy) {
-                    value = getLegacyTableParallelism(ctx, props, dbTableQualifier);
+                    value = getLegacyTableParallelism(ctx, props, dbTableQualifier, type);
                 } else if (!parts[0].equals(ctx.getTableEnvironment().getCurrentDatabase())) {
                     return null;
                 } else {
@@ -124,10 +124,11 @@ public class PipelineOptimizer {
     * for the reason legacy HiveTableSource does not provide catalog info, we try to discover user properties "*.database.table" pattern for hive catalog manner, and
     * assume to matched if only filtered one result
     * */
-    private static String getLegacyTableParallelism(ExecutionContext<?> ctx, Map<String, String> props, String legacyQualifier) {
+    private static String getLegacyTableParallelism(ExecutionContext<?> ctx, Map<String, String> props, String legacyQualifier, TableType type) {
         List<String> legacyKeys = props.keySet().stream().filter(key -> {
             String[] parts = key.split("\\.");
-            return parts.length == 6 && key.startsWith("table.") && key.endsWith(legacyQualifier + ".parallelism") && ctx.getCatalogs().get(parts[2]) instanceof HiveCatalog;
+            return parts.length == 6 && key.startsWith(String.format("table.%s", type.equals(TableType.SOURCE) ? "source" : "sink"))
+                    && key.endsWith(legacyQualifier + ".parallelism") && ctx.getCatalogs().get(parts[2]) instanceof HiveCatalog;
         }).collect(Collectors.toList());
         if (legacyKeys.size() == 1) {
             return props.get(legacyKeys.get(0));
