@@ -20,15 +20,23 @@ package com.ververica.flink.table.gateway.rest.session;
 
 import com.ververica.flink.table.gateway.config.Environment;
 import com.ververica.flink.table.gateway.config.entries.ExecutionEntry;
+import com.ververica.flink.table.gateway.config.entries.SessionEntry;
 import com.ververica.flink.table.gateway.context.DefaultContext;
 import com.ververica.flink.table.gateway.context.SessionContext;
 import com.ververica.flink.table.gateway.utils.SqlGatewayException;
 
+import org.apache.flink.util.JarUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -93,7 +101,7 @@ public class SessionManager {
 		String sessionName,
 		String planner,
 		String executionType,
-		Map<String, String> properties) {
+		Map<String, String> properties) throws SqlGatewayException {
 		checkSessionCount();
 
 		Map<String, String> newProperties = new HashMap<>(properties);
@@ -115,8 +123,26 @@ public class SessionManager {
 		Environment sessionEnv = Environment.enrich(
 			defaultContext.getDefaultEnv(), newProperties, Collections.emptyMap());
 
+		List<URL> dependencies = new ArrayList<>(defaultContext.getDependencies());
+		if (properties.get(SessionEntry.SESSION_PIPELINE_ADDITIONAL_JARS) != null) {
+			String pipelineAdditionalJars = properties.get(SessionEntry.SESSION_PIPELINE_ADDITIONAL_JARS);
+			String[] jars = pipelineAdditionalJars.split(",");
+			for (String jar: jars) {
+				URL jarUrl = null;
+				try {
+					jarUrl = new URL(jar);
+					JarUtils.checkJarFile(jarUrl);
+					dependencies.add(jarUrl);
+				} catch (MalformedURLException e) {
+					throw new SqlGatewayException(String.format("invalid jar url : %s", jar), e);
+				} catch (IOException e) {
+					throw new SqlGatewayException(String.format("invalid jar file : %s", jarUrl), e);
+				}
+			}
+		}
+		DefaultContext sessionDefaultContext = new DefaultContext(defaultContext.getDefaultEnv(), dependencies);
 		String sessionId = SessionID.generate().toHexString();
-		SessionContext sessionContext = new SessionContext(sessionName, sessionId, sessionEnv, defaultContext);
+		SessionContext sessionContext = new SessionContext(sessionName, sessionId, sessionEnv, sessionDefaultContext);
 
 		Session session = new Session(sessionContext);
 		sessions.put(sessionId, session);
