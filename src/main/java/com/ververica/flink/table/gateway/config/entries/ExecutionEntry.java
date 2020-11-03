@@ -110,6 +110,8 @@ public class ExecutionEntry extends ConfigEntry {
 
 	public static final String EXECUTION_CURRENT_DATABASE = "current-database";
 
+	public static final String PIPELINE_ADDITIONAL_JARS = "pipeline.additional.jars";
+
 	private ExecutionEntry(DescriptorProperties properties) {
 		super(properties);
 	}

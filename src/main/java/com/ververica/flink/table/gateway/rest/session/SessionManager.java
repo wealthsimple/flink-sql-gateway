@@ -93,7 +93,7 @@ public class SessionManager {
 		String sessionName,
 		String planner,
 		String executionType,
-		Map<String, String> properties) {
+		Map<String, String> properties) throws SqlGatewayException {
 		checkSessionCount();
 
 		Map<String, String> newProperties = new HashMap<>(properties);
