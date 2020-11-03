@@ -41,8 +41,6 @@ public class SessionEntry extends ConfigEntry {
 
 	private static final String SESSION_MAX_COUNT = "max-count";
 
-	public static final String SESSION_PIPELINE_ADDITIONAL_JARS = "pipeline.additional.jars";
-
 	private SessionEntry(DescriptorProperties properties) {
 		super(properties);
 	}

@@ -19,9 +19,19 @@
 package com.ververica.flink.table.gateway.context;
 
 import com.ververica.flink.table.gateway.config.Environment;
+import com.ververica.flink.table.gateway.config.entries.ExecutionEntry;
+import com.ververica.flink.table.gateway.utils.SqlGatewayException;
+
+import org.apache.flink.util.JarUtils;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -69,10 +79,28 @@ public class SessionContext {
 
 	/** Returns ExecutionContext.Builder with given {@link SessionContext} session context. */
 	public ExecutionContext.Builder createExecutionContextBuilder(Environment sessionEnv) {
+		List<URL> dependencies = new ArrayList<>(defaultContext.getDependencies());
+		Map<String, String> executionProperties = sessionEnv.getExecution().asMap();
+		if (executionProperties.containsKey(ExecutionEntry.PIPELINE_ADDITIONAL_JARS)) {
+			String pipelineAdditionalJars = executionProperties.get(ExecutionEntry.PIPELINE_ADDITIONAL_JARS);
+			String[] jars = pipelineAdditionalJars.split(",");
+			for (String jar: jars) {
+				URL jarUrl = null;
+				try {
+					jarUrl = new URL(jar);
+					JarUtils.checkJarFile(jarUrl);
+					dependencies.add(jarUrl);
+				} catch (MalformedURLException e) {
+					throw new SqlGatewayException(String.format("invalid jar url : %s", jar), e);
+				} catch (IOException e) {
+					throw new SqlGatewayException(String.format("invalid jar file : %s", jarUrl), e);
+				}
+			}
+		}
 		return ExecutionContext.builder(
 			defaultContext.getDefaultEnv(),
 			sessionEnv,
-			defaultContext.getDependencies(),
+			dependencies,
 			defaultContext.getFlinkConfig(),
 			defaultContext.getClusterClientServiceLoader(),
 			defaultContext.getCommandLineOptions(),
