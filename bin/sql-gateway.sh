@@ -90,7 +90,7 @@ if [ "$FLINK_IDENT_STRING" = "" ]; then
 fi
 
 CC_CLASSPATH=`constructFlinkClassPath`
-FULL_CLASSPATH="`manglePathList "$CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS:$FLINK_SQL_GATEWAY_CLASSPATH"`"
+FULL_CLASSPATH="`manglePathList "$FLINK_SQL_GATEWAY_CLASSPATH:$CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`"
 
 
 # build log config
@@ -106,7 +106,8 @@ if [[ $? -ne 0 ]]; then
     echo "$jvm_args_output" 1>&2
     exit 1
 fi
-JVM_ARGS=`extractExecutionParams "$jvm_args_output"`
+
+JVM_ARGS=`extractExecutionResults "$jvm_args_output" 1`
 
 
 if [ -n "$FLINK_SQL_GATEWAY_JAR" ]; then
