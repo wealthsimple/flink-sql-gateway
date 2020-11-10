@@ -202,7 +202,7 @@ under the License.
             <scope>provided</scope>
             <optional>true</optional>
         </dependency>
-        
+
         <!-- test dependencies for HiveCatalog. The exclusions should be in sync with those flink-connector-hive -->
 
         <dependency>
@@ -555,6 +555,14 @@ under the License.
             <version>${log4j.version}</version>
             <scope>provided</scope>
         </dependency>
+
+        <dependency>
+            <groupId>org.apache.hive</groupId>
+            <artifactId>hive-exec</artifactId>
+            <version>${hive.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
     </dependencies>
 
     <build>

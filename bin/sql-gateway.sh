@@ -106,7 +106,8 @@ if [[ $? -ne 0 ]]; then
     echo "$jvm_args_output" 1>&2
     exit 1
 fi
-JVM_ARGS=`extractExecutionParams "$jvm_args_output"`
+
+JVM_ARGS=`extractExecutionResults "$jvm_args_output" 1`
 
 
 if [ -n "$FLINK_SQL_GATEWAY_JAR" ]; then
