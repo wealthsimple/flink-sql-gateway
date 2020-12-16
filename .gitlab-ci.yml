@@ -1,12 +1,14 @@
 test:
+  tags:
+  - maven
   script:
-  - mvn clean test
+  - mvn test
 
 deploy:
   stage: deploy
+  tags:
+  - maven
   only:
   - qihoo-1.11@big-data/flink-sql-gateway
   script:
-  - mvn clean deploy 
-
-
+  - mvn deploy 
