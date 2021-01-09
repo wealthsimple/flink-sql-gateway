@@ -113,6 +113,10 @@ public class Session {
 		return Tuple2.of(resultSet, call.command);
 	}
 
+	public Map<JobID, JobOperation> getJobs() {
+		return this.jobOperations;
+	}
+
 	public JobStatus getJobStatus(JobID jobId) {
 		LOG.info("Session: {}, get status for job: {}", sessionId, jobId);
 		return getJobOperation(jobId).getJobStatus();
