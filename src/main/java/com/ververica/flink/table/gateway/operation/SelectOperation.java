@@ -213,7 +213,7 @@ public class SelectOperation extends AbstractJobOperation {
 				table.insertInto(tableName);
 				return null;
 			});
-			pipeline = executionContext.createPipeline(jobName);
+			pipeline = executionContext.wrapClassLoader(() -> executionContext.createPipeline(jobName));
 		} catch (Throwable t) {
 			// the result needs to be closed as long as
 			// it not stored in the result store

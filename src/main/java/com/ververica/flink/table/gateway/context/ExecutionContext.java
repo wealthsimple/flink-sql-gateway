@@ -26,6 +26,7 @@ import com.ververica.flink.table.gateway.config.entries.SourceSinkTableEntry;
 import com.ververica.flink.table.gateway.config.entries.SourceTableEntry;
 import com.ververica.flink.table.gateway.config.entries.TemporalTableEntry;
 import com.ververica.flink.table.gateway.config.entries.ViewEntry;
+import com.ververica.flink.table.gateway.utils.PipelineOptimizer;
 import com.ververica.flink.table.gateway.utils.SqlExecutionException;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -100,6 +101,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.ververica.flink.table.gateway.config.Environment.CONFIGURATION_ENTRY;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -230,13 +232,15 @@ public class ExecutionContext<ClusterID> {
 
 	public Pipeline createPipeline(String name) {
 		return wrapClassLoader(() -> {
+			Pipeline pipeline = null;
 			if (streamExecEnv != null) {
 				StreamTableEnvironmentImpl streamTableEnv = (StreamTableEnvironmentImpl) tableEnv;
-				return streamTableEnv.getPipeline(name);
+				pipeline = streamTableEnv.getPipeline(name);
 			} else {
 				BatchTableEnvironmentImpl batchTableEnv = (BatchTableEnvironmentImpl) tableEnv;
-				return batchTableEnv.getPipeline(name);
+				pipeline = batchTableEnv.getPipeline(name);
 			}
+			return PipelineOptimizer.optimize(this, pipeline);
 		});
 	}
 
@@ -578,6 +582,17 @@ public class ExecutionContext<ClusterID> {
 		if (env.getStreamTimeCharacteristic() == TimeCharacteristic.EventTime) {
 			env.getConfig().setAutoWatermarkInterval(environment.getExecution().getPeriodicWatermarksInterval());
 		}
+
+		final String checkpointingPrefix = CONFIGURATION_ENTRY + ".execution.checkpointing";
+		Configuration checkpointingConf = new Configuration();
+		environment.getConfiguration().asMap().forEach((k, v) -> {
+			final String normalizedKey = k.toLowerCase();
+			if (k.startsWith(checkpointingPrefix + '.')) {
+				checkpointingConf.setString(normalizedKey.substring(CONFIGURATION_ENTRY.length() + 1), v);
+			}
+		});
+		env.getCheckpointConfig().configure(checkpointingConf);
+
 		return env;
 	}
 
