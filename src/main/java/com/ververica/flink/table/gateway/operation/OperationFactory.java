@@ -103,6 +103,9 @@ public class OperationFactory {
 			case EXPLAIN:
 				operation = new ExplainOperation(context, call.operands[0]);
 				break;
+			case STATEMENT_SET:
+				operation = new StatementSetOperation(context, call.operands[0]);
+				break;
 			default:
 				throw new SqlGatewayException("Unsupported command call " + call + ". This is a bug.");
 		}
