@@ -334,10 +334,10 @@ public class SqlCommandParserTest {
 		String query = "BEGIN STATEMENT SET;\n" +
 				"INSERT INTO tablea SELECT * FROM source_table /* OPTIONS ('k'='v') */ WHERE col='a'; \n" +
 				"INSERT INTO tableb SELECT * FROM source_table /* OPTIONS ('k'='v') */ WHERE col='b'; \n" +
-				" END";
-		String multiInsert = "INSERT INTO tablea SELECT * FROM source_table /* OPTIONS ('k'='v') */ WHERE col='a'; \n" +
+				" END; \n";
+		String expected = "INSERT INTO tablea SELECT * FROM source_table /* OPTIONS ('k'='v') */ WHERE col='a'; \n" +
 				"INSERT INTO tableb SELECT * FROM source_table /* OPTIONS ('k'='v') */ WHERE col='b';";
-		checkCommand(query, SqlCommand.STATEMENT_SET, new String[]{multiInsert, "'"});
+		checkCommand(query, SqlCommand.STATEMENT_SET, new String[]{expected});
 	}
 
 	private void checkCommand(String stmt, SqlCommand expectedCmd, String... expectedOperand) {
