@@ -329,6 +329,17 @@ public class SqlCommandParserTest {
 		checkCommand(query, SqlCommand.SHOW_CURRENT_DATABASE);
 	}
 
+	@Test
+	public void testStatementSet() {
+		String query = "BEGIN STATEMENT SET;\n" +
+				"INSERT INTO tablea SELECT * FROM source_table /* OPTIONS ('k'='v') */ WHERE col='a'; \n" +
+				"INSERT INTO tableb SELECT * FROM source_table /* OPTIONS ('k'='v') */ WHERE col='b'; \n" +
+				" END; \n";
+		String expected = "INSERT INTO tablea SELECT * FROM source_table /* OPTIONS ('k'='v') */ WHERE col='a'; \n" +
+				"INSERT INTO tableb SELECT * FROM source_table /* OPTIONS ('k'='v') */ WHERE col='b';";
+		checkCommand(query, SqlCommand.STATEMENT_SET, new String[]{expected});
+	}
+
 	private void checkCommand(String stmt, SqlCommand expectedCmd, String... expectedOperand) {
 		Optional<SqlCommandCall> cmd2 = SqlCommandParser.parse(stmt, true);
 		assertTrue(cmd2.isPresent());

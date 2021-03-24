@@ -331,6 +331,10 @@ public final class SqlCommandParser {
 			"SHOW\\s+VIEWS",
 			NO_OPERANDS),
 
+		STATEMENT_SET(
+				"BEGIN\\s+STATEMENT\\s+SET;\\s*(INSERT.*?;)+?\\s*END",
+				(operands) -> Optional.of(operands)),
+
 		// the following commands are not supported by SQL parser but are needed by JDBC driver
 		// these should not be exposed to the user and should be used internally
 
