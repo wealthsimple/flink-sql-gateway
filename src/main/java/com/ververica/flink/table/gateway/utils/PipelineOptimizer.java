@@ -34,15 +34,11 @@ public class PipelineOptimizer {
 	static final Pattern SINK_TABLE_PREFIX = Pattern.compile("^Sink:\\s(Sink)\\(table=\\[(.+?)\\].*\\)$");
 
 	// optimized StreamGraph vertex , vertexID -> parallelism
-	private static ThreadLocal<HashMap<Integer, Integer>> optimized = new ThreadLocal<>();
+	private static ThreadLocal<HashMap<Integer, Integer>> optimized = ThreadLocal.withInitial(() -> new HashMap<>());
 
 	public static Pipeline optimize(ExecutionContext<?> ctx, Pipeline origin) {
-		try {
-			optimized.get().clear();
-			return optimizeTableSourceSinkParallelism(ctx, origin);
-		} finally {
-			optimized.remove();
-		}
+		optimized.get().clear();
+		return optimizeTableSourceSinkParallelism(ctx, origin);
 	}
 
 	private static Pipeline optimizeTableSourceSinkParallelism(ExecutionContext<?> ctx, Pipeline pipeline) {
