@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -31,7 +32,11 @@ public class PipelineOptimizer {
 	static final Pattern TABLE_SOURCE_SCAN = Pattern.compile("^\\(table=\\[\\[(.+?)\\]\\].*\\)$");
 	static final Pattern SINK_TABLE_PREFIX = Pattern.compile("^Sink:\\s(Sink)\\(table=\\[(.+?)\\].*\\)$");
 
+	// optimized StreamGraph vertex , vertexID -> parallelism
+	private static ThreadLocal<HashMap<Integer, Integer>> optimized = ThreadLocal.withInitial(() -> new HashMap<>());
+
 	public static Pipeline optimize(ExecutionContext<?> ctx, Pipeline origin) {
+		optimized.get().clear();
 		return optimizeTableSourceSinkParallelism(ctx, origin);
 	}
 
@@ -80,7 +85,10 @@ public class PipelineOptimizer {
 				String configuredTableParallelism = findUserDefinedTableParallelism(ctx, qualifier, TableType.SOURCE, legacy);
 				if (configuredTableParallelism != null) {
 					Integer sourceTableParallelism = Integer.valueOf(configuredTableParallelism);
-					sourceNode.setParallelism(sourceTableParallelism);
+					if (!optimized.get().containsKey(sourceNode.getId())) {
+						sourceNode.setParallelism(sourceTableParallelism);
+						optimized.get().put(sourceNode.getId(), sourceTableParallelism);
+					}
 					return optimizeForwardDownStreamNodes(streamGraph, sourceNode, sourceTableParallelism);
 				}
 			} else {
@@ -152,7 +160,10 @@ public class PipelineOptimizer {
 			for (StreamEdge edge : outEdges) {
 				if (edge.getPartitioner() instanceof ForwardPartitioner) {
 					StreamNode downstreamNode = streamGraph.getStreamNode(edge.getTargetId());
-					downstreamNode.setParallelism(sourceTableParallelism);
+					if (!optimized.get().containsKey(downstreamNode.getId())) {
+						downstreamNode.setParallelism(sourceTableParallelism);
+						optimized.get().put(downstreamNode.getId(), sourceTableParallelism);
+					}
 					// set downstream parallelism recursively
 					return optimizeForwardDownStreamNodes(streamGraph, downstreamNode, sourceTableParallelism);
 				}
@@ -171,7 +182,10 @@ public class PipelineOptimizer {
 				String configuredTableParallelism = findUserDefinedTableParallelism(ctx, qualifier, TableType.SINK, false); // current sink optimize not support legacy mode
 				if (configuredTableParallelism != null) {
 					Integer sinkTableParallelism = Integer.valueOf(configuredTableParallelism);
-					sinkNode.setParallelism(sinkTableParallelism);
+					if (!optimized.get().containsKey(sinkNode.getId())) {
+						sinkNode.setParallelism(sinkTableParallelism);
+						optimized.get().put(sinkNode.getId(), sinkTableParallelism);
+					}
 					return optimizeForwardUpStreamNodes(streamGraph, sinkNode, sinkTableParallelism);
 				}
 			} else {
@@ -188,7 +202,10 @@ public class PipelineOptimizer {
 			for (StreamEdge edge : inEdges) {
 				if (edge.getPartitioner() instanceof ForwardPartitioner) {
 					StreamNode upstreamNode = streamGraph.getStreamNode(edge.getSourceId());
-					upstreamNode.setParallelism(sinkTableParallelism);
+					if (!optimized.get().containsKey(upstreamNode.getId())) {
+						upstreamNode.setParallelism(sinkTableParallelism);
+						optimized.get().put(upstreamNode.getId(), sinkTableParallelism);
+					}
 					// set upstream parallelism recursively
 					return optimizeForwardUpStreamNodes(streamGraph, upstreamNode, sinkTableParallelism);
 				}
