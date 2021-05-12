@@ -7,6 +7,7 @@ import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 
 import org.slf4j.Logger;
@@ -32,7 +33,7 @@ public class PipelineOptimizer {
 	static final Pattern TABLE_SOURCE_SCAN = Pattern.compile("^\\(table=\\[\\[(.+?)\\]\\].*\\)$");
 	static final Pattern SINK_TABLE_PREFIX = Pattern.compile("^Sink:\\s(Sink)\\(table=\\[(.+?)\\].*\\)$");
 
-	// optimized StreamGraph vertex , vertexID -> parallelism
+	// optimized StreamGraph vertex, only inner vertex (no source and sink, which is optimized by force) , vertexID -> parallelism
 	private static ThreadLocal<HashMap<Integer, Integer>> optimized = ThreadLocal.withInitial(() -> new HashMap<>());
 
 	public static Pipeline optimize(ExecutionContext<?> ctx, Pipeline origin) {
@@ -84,12 +85,11 @@ public class PipelineOptimizer {
 			if (qualifier != null) {
 				String configuredTableParallelism = findUserDefinedTableParallelism(ctx, qualifier, TableType.SOURCE, legacy);
 				if (configuredTableParallelism != null) {
+					// force set source table parallelism
 					Integer sourceTableParallelism = Integer.valueOf(configuredTableParallelism);
-					if (!optimized.get().containsKey(sourceNode.getId())) {
-						sourceNode.setParallelism(sourceTableParallelism);
-						optimized.get().put(sourceNode.getId(), sourceTableParallelism);
-					}
-					return optimizeForwardDownStreamNodes(streamGraph, sourceNode, sourceTableParallelism);
+					sourceNode.setParallelism(sourceTableParallelism);
+					// then optimize forward downstream nodes
+					optimizeForwardDownStreamNodes(streamGraph, sourceNode, sourceTableParallelism);
 				}
 			} else {
 				logger.warn(String.format("recognize table source type %s, but extract pattern not match for %s", type, description));
@@ -154,20 +154,15 @@ public class PipelineOptimizer {
 	}
 
 	private static StreamGraph optimizeForwardDownStreamNodes(StreamGraph streamGraph, StreamNode sourceNode, Integer sourceTableParallelism) {
-		// set Forward downstream StreamNodes
+		// set straight one-output Forward downstream StreamNodes
 		List<StreamEdge> outEdges = sourceNode.getOutEdges();
-		if (outEdges.size() > 0) {
-			for (StreamEdge edge : outEdges) {
-				if (edge.getPartitioner() instanceof ForwardPartitioner) {
-					StreamNode downstreamNode = streamGraph.getStreamNode(edge.getTargetId());
-					if (!optimized.get().containsKey(downstreamNode.getId())) {
-						downstreamNode.setParallelism(sourceTableParallelism);
-						optimized.get().put(downstreamNode.getId(), sourceTableParallelism);
-					}
-					// set downstream parallelism recursively
-					return optimizeForwardDownStreamNodes(streamGraph, downstreamNode, sourceTableParallelism);
-				}
+		if (outEdges.size() == 1 && outEdges.get(0).getPartitioner() instanceof ForwardPartitioner) {
+			StreamNode downstreamNode = streamGraph.getStreamNode(outEdges.get(0).getTargetId());
+			if (!optimized.get().containsKey(downstreamNode.getId())) {
+				downstreamNode.setParallelism(sourceTableParallelism);
+				optimized.get().put(downstreamNode.getId(), sourceTableParallelism);
 			}
+			optimizeForwardDownStreamNodes(streamGraph, downstreamNode, sourceTableParallelism);
 		}
 		return streamGraph;
 	}
@@ -181,12 +176,11 @@ public class PipelineOptimizer {
 			if (qualifier != null) {
 				String configuredTableParallelism = findUserDefinedTableParallelism(ctx, qualifier, TableType.SINK, false); // current sink optimize not support legacy mode
 				if (configuredTableParallelism != null) {
+					// force set sink table parallelism
 					Integer sinkTableParallelism = Integer.valueOf(configuredTableParallelism);
-					if (!optimized.get().containsKey(sinkNode.getId())) {
-						sinkNode.setParallelism(sinkTableParallelism);
-						optimized.get().put(sinkNode.getId(), sinkTableParallelism);
-					}
-					return optimizeForwardUpStreamNodes(streamGraph, sinkNode, sinkTableParallelism);
+					sinkNode.setParallelism(sinkTableParallelism);
+					// then optimize forward upstream nodes
+					optimizeForwardUpStreamNodes(streamGraph, sinkNode, sinkTableParallelism);
 				}
 			} else {
 				logger.warn(String.format("recognize table sink type %s, but extract pattern not match for %s", type, sinkNode.getOperatorName()));
@@ -196,20 +190,16 @@ public class PipelineOptimizer {
 	}
 
 	private static StreamGraph optimizeForwardUpStreamNodes(StreamGraph streamGraph, StreamNode sinkNode, Integer sinkTableParallelism) {
-		// set Forward upstream StreamNodes
+		// set straight one-input Forward upstream StreamNodes
 		List<StreamEdge> inEdges = sinkNode.getInEdges();
-		if (inEdges.size() > 0) {
-			for (StreamEdge edge : inEdges) {
-				if (edge.getPartitioner() instanceof ForwardPartitioner) {
-					StreamNode upstreamNode = streamGraph.getStreamNode(edge.getSourceId());
-					if (!optimized.get().containsKey(upstreamNode.getId())) {
-						upstreamNode.setParallelism(sinkTableParallelism);
-						optimized.get().put(upstreamNode.getId(), sinkTableParallelism);
-					}
-					// set upstream parallelism recursively
-					return optimizeForwardUpStreamNodes(streamGraph, upstreamNode, sinkTableParallelism);
-				}
+		if (inEdges.size() == 1 && inEdges.get(0).getPartitioner() instanceof ForwardPartitioner) {
+			StreamNode upstreamNode = streamGraph.getStreamNode(inEdges.get(0).getSourceId());
+			if (!upstreamNode.getJobVertexClass().isAssignableFrom(SourceStreamTask.class) && !optimized.get().containsKey(upstreamNode.getId())) {
+				upstreamNode.setParallelism(sinkTableParallelism);
+				optimized.get().put(upstreamNode.getId(), sinkTableParallelism);
 			}
+			// set upstream parallelism recursively
+			optimizeForwardUpStreamNodes(streamGraph, upstreamNode, sinkTableParallelism);
 		}
 		return streamGraph;
 	}
