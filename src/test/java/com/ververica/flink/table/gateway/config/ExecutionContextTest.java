@@ -235,9 +235,9 @@ public class ExecutionContextTest {
 			tableEnv.getConfig().getConfiguration().getBoolean(
 				ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED));
 		assertEquals(
-			"128kb",
-			tableEnv.getConfig().getConfiguration().getString(
-				ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE));
+			"128 kb",
+			tableEnv.getConfig().getConfiguration().get(
+				ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE).toString());
 
 		assertTrue(
 			tableEnv.getConfig().getConfiguration().getBoolean(

@@ -272,7 +272,7 @@ public class SqlCommandParserTest {
 
 	@Test
 	public void testExplainPlan() {
-		String query1 = "explain plan for select * from MyTable";
+		String query1 = "explain select * from MyTable";
 		checkCommand(query1, SqlCommand.EXPLAIN, "SELECT *\nFROM `MyTable`");
 
 		String query2 = "\n -- comments \n explain \n -- comments \n plan \n -- comments \n for \n " +

@@ -38,21 +38,24 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
+import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.catalog.GenericInMemoryCatalogFactory;
+import org.apache.flink.table.catalog.GenericInMemoryCatalogFactoryOptions;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
-import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactory;
+import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.CatalogFactory;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.types.DataType;
@@ -73,8 +76,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE;
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
+import static org.apache.flink.table.catalog.CommonCatalogOptions.CATALOG_TYPE;
+import static org.apache.flink.table.catalog.CommonCatalogOptions.DEFAULT_DATABASE_KEY;
 import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 import static org.junit.Assert.assertEquals;
 
@@ -192,6 +195,50 @@ public class DependencyTest {
 	}
 
 	/**
+	 * For backward compatibility for GenericInMemoryCatalogFactroy because [FLINK-21822].
+	 */
+	public static class TestGenericInMemoryCatalogFactory extends GenericInMemoryCatalogFactory {
+
+		@Override
+		public Map<String, String> requiredContext() {
+			Map<String, String> context = new HashMap<>();
+			context.put(CATALOG_TYPE.key(), GenericInMemoryCatalogFactoryOptions.IDENTIFIER); // generic_in_memory
+			context.put(FactoryUtil.PROPERTY_VERSION.key(), "1"); // backwards compatibility
+			return context;
+		}
+
+		@Override
+		public List<String> supportedProperties() {
+			List<String> properties = new ArrayList<>();
+
+			// default database
+			properties.add(GenericInMemoryCatalogFactoryOptions.DEFAULT_DATABASE.key());
+
+			return properties;
+		}
+
+		@Override
+		public Catalog createCatalog(String name, Map<String, String> properties) {
+			final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
+
+			final Optional<String> defaultDatabase = descriptorProperties.getOptionalString(GenericInMemoryCatalogFactoryOptions.DEFAULT_DATABASE.key());
+
+			return new GenericInMemoryCatalog(name, defaultDatabase.orElse(GenericInMemoryCatalog.DEFAULT_DB));
+		}
+
+		private static DescriptorProperties getValidatedProperties(Map<String, String> properties) {
+			final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
+			descriptorProperties.putProperties(properties);
+
+			// from 1.13 [FLINK-21822][table] Migrate built-in and test catalog factories to new stack
+			// we just ignore validation
+//			new GenericInMemoryCatalogValidator().validate(descriptorProperties);
+
+			return descriptorProperties;
+		}
+	}
+
+	/**
 	 * Catalog that can be discovered if classloading is correct.
 	 */
 	public static class TestCatalogFactory implements CatalogFactory {
@@ -199,14 +246,14 @@ public class DependencyTest {
 		@Override
 		public Map<String, String> requiredContext() {
 			final Map<String, String> context = new HashMap<>();
-			context.put(CATALOG_TYPE, CATALOG_TYPE_TEST);
+			context.put(CATALOG_TYPE.key(), CATALOG_TYPE_TEST);
 			return context;
 		}
 
 		@Override
 		public List<String> supportedProperties() {
 			final List<String> properties = new ArrayList<>();
-			properties.add(CATALOG_DEFAULT_DATABASE);
+			properties.add(DEFAULT_DATABASE_KEY);
 			return properties;
 		}
 
@@ -215,7 +262,7 @@ public class DependencyTest {
 			final DescriptorProperties params = new DescriptorProperties(true);
 			params.putProperties(properties);
 
-			final Optional<String> defaultDatabase = params.getOptionalString(CATALOG_DEFAULT_DATABASE);
+			final Optional<String> defaultDatabase = params.getOptionalString(DEFAULT_DATABASE_KEY);
 
 			return new TestCatalog(name, defaultDatabase.orElse(GenericInMemoryCatalog.DEFAULT_DB));
 		}
@@ -242,7 +289,9 @@ public class DependencyTest {
 
 		@Override
 		public Map<String, String> requiredContext() {
-			Map<String, String> context = super.requiredContext();
+			Map<String, String> context = new HashMap<>();
+			context.put(CATALOG_TYPE.key(), "hive"); // hive
+			context.put(FactoryUtil.PROPERTY_VERSION.key(), "1"); // backwards compatibility
 
 			// For factory discovery service to distinguish TestHiveCatalogFactory from HiveCatalogFactory
 			context.put("test", "test");
@@ -251,10 +300,20 @@ public class DependencyTest {
 
 		@Override
 		public List<String> supportedProperties() {
-			List<String> list = super.supportedProperties();
-			list.add(CatalogConfig.IS_GENERIC);
+			List<String> properties = new ArrayList<>();
 
-			return list;
+			// default database
+			properties.add(HiveCatalogFactoryOptions.DEFAULT_DATABASE.key());
+
+			properties.add(HiveCatalogFactoryOptions.HIVE_CONF_DIR.key());
+
+			properties.add(HiveCatalogFactoryOptions.HIVE_VERSION.key());
+
+			properties.add(HiveCatalogFactoryOptions.HADOOP_CONF_DIR.key());
+
+			properties.add(CatalogPropertiesUtil.IS_GENERIC);
+
+			return properties;
 		}
 
 		@Override
@@ -263,7 +322,7 @@ public class DependencyTest {
 			// and Flink tests should avoid using those hive-site.xml.
 			// Thus, explicitly create a testing HiveConf for unit tests here
 			Catalog hiveCatalog = HiveTestUtils
-				.createHiveCatalog(name, properties.get(HiveCatalogValidator.CATALOG_HIVE_VERSION));
+				.createHiveCatalog(name, properties.get(HiveCatalogFactoryOptions.HIVE_VERSION));
 
 			// Creates an additional database to test tableEnv.useDatabase() will switch current database of the catalog
 			hiveCatalog.open();
@@ -279,7 +338,7 @@ public class DependencyTest {
 							.field("testcol", DataTypes.INT())
 							.build(),
 						new HashMap<String, String>() {{
-							put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+							put(CatalogPropertiesUtil.IS_GENERIC, String.valueOf(false));
 						}},
 						""
 					),
@@ -302,7 +361,7 @@ public class DependencyTest {
 			return new CatalogTableImpl(
 				tableSchema,
 				new HashMap<String, String>() {{
-					put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+					put(CatalogPropertiesUtil.IS_GENERIC, String.valueOf(false));
 				}},
 				"");
 		}

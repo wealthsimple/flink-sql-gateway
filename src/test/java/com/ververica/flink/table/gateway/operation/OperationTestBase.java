@@ -62,7 +62,7 @@ public class OperationTestBase {
 	protected Environment getSessionEnvironment() throws Exception {
 		Map<String, String> newProperties = new HashMap<>();
 		newProperties.put(Environment.EXECUTION_ENTRY + "." + ExecutionEntry.EXECUTION_PLANNER, "blink");
-		newProperties.put(Environment.EXECUTION_ENTRY + "." + ExecutionEntry.EXECUTION_TYPE, "batch");
+		newProperties.put(Environment.EXECUTION_ENTRY + "." + ExecutionEntry.EXECUTION_TYPE, "streaming");
 		return Environment.enrich(new Environment(), newProperties, Collections.emptyMap());
 	}
 

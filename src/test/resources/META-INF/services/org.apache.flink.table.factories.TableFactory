@@ -15,6 +15,7 @@
 
 com.ververica.flink.table.gateway.sink.dummy.DummyTableSinkFactory
 com.ververica.flink.table.gateway.utils.SimpleCatalogFactory
+com.ververica.flink.table.gateway.config.DependencyTest$TestGenericInMemoryCatalogFactory
 com.ververica.flink.table.gateway.config.DependencyTest$TestCatalogFactory
 com.ververica.flink.table.gateway.config.DependencyTest$TestHiveCatalogFactory
 com.ververica.flink.table.gateway.config.DependencyTest$TestModuleFactory

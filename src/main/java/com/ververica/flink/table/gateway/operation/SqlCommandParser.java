@@ -30,6 +30,7 @@ import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
 import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
+import org.apache.flink.sql.parser.dql.SqlRichExplain;
 import org.apache.flink.sql.parser.dql.SqlShowCatalogs;
 import org.apache.flink.sql.parser.dql.SqlShowDatabases;
 import org.apache.flink.sql.parser.dql.SqlShowFunctions;
@@ -39,7 +40,6 @@ import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.sql.SqlDrop;
-import org.apache.calcite.sql.SqlExplain;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
@@ -205,10 +205,9 @@ public final class SqlCommandParser {
 			String escapedName =
 				Stream.of(fullTableName).map(s -> "`" + s + "`").collect(Collectors.joining("."));
 			operands = new String[] { escapedName };
-		} else if (node instanceof SqlExplain) {
+		} else if (node instanceof SqlRichExplain) {
 			cmd = SqlCommand.EXPLAIN;
-			// TODO support explain details
-			operands = new String[] { ((SqlExplain) node).getExplicandum().toString() };
+			operands = new String[] { ((SqlRichExplain) node).getStatement().toString() };
 		} else if (node instanceof SqlSetOption) {
 			SqlSetOption setNode = (SqlSetOption) node;
 			// refer to SqlSetOption#unparseAlterOperation
