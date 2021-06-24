@@ -63,8 +63,8 @@ import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.descriptors.CoreModuleDescriptorValidator;
 import org.apache.flink.table.factories.BatchTableSinkFactory;
 import org.apache.flink.table.factories.BatchTableSourceFactory;
-import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.ComponentFactoryService;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.factories.TableSinkFactory;
@@ -325,9 +325,11 @@ public class ExecutionContext<ClusterID> {
 	}
 
 	private Catalog createCatalog(String name, Map<String, String> catalogProperties, ClassLoader classLoader) {
-		final CatalogFactory factory =
-			TableFactoryService.find(CatalogFactory.class, catalogProperties, classLoader);
-		return factory.createCatalog(name, catalogProperties);
+		return FactoryUtil.createCatalog(
+				name,
+				catalogProperties,
+				tableEnv.getConfig().getConfiguration(),
+				classLoader);
 	}
 
 	private static TableSource<?> createTableSource(ExecutionEntry execution, Map<String, String> sourceProperties,
