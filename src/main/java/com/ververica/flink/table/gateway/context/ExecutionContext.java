@@ -481,6 +481,7 @@ public class ExecutionContext<ClusterID> {
 			streamExecEnv = createStreamExecutionEnvironment();
 			execEnv = null;
 
+			config.getConfiguration().setString("execution.runtime-mode", environment.getExecution().inStreamingMode() ? "streaming" : "batch");
 			final Map<String, String> executorProperties = settings.toExecutorProperties();
 			executor = lookupExecutor(executorProperties, streamExecEnv);
 			tableEnv = createStreamTableEnvironment(
@@ -495,6 +496,7 @@ public class ExecutionContext<ClusterID> {
 			streamExecEnv = null;
 			execEnv = createExecutionEnvironment();
 			executor = null;
+			config.getConfiguration().setString("execution.runtime-mode", "batch");
 			tableEnv = new BatchTableEnvironmentImpl(
 				execEnv,
 				config,
