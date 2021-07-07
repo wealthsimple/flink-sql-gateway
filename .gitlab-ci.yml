@@ -9,6 +9,6 @@ deploy:
   tags:
   - maven
   only:
-  - qihoo-1.12@big-data/flink-sql-gateway
+  - qihoo-1.13@big-data/flink-sql-gateway
   script:
   - mvn deploy 
