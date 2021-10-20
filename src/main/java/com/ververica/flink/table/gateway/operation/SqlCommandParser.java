@@ -26,6 +26,8 @@ import org.apache.flink.sql.parser.ddl.SqlCreateView;
 import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
 import org.apache.flink.sql.parser.ddl.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.SqlDropView;
+import org.apache.flink.sql.parser.ddl.SqlReset;
+import org.apache.flink.sql.parser.ddl.SqlSet;
 import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
 import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
@@ -43,7 +45,6 @@ import org.apache.calcite.sql.SqlDrop;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlSetOption;
 import org.apache.calcite.sql.parser.SqlParser;
 
 import java.lang.reflect.Field;
@@ -208,20 +209,24 @@ public final class SqlCommandParser {
 		} else if (node instanceof SqlRichExplain) {
 			cmd = SqlCommand.EXPLAIN;
 			operands = new String[] { ((SqlRichExplain) node).getStatement().toString() };
-		} else if (node instanceof SqlSetOption) {
-			SqlSetOption setNode = (SqlSetOption) node;
+		} else if (node instanceof SqlSet) {
+			SqlSet setNode = (SqlSet) node;
+			cmd = SqlCommand.SET;
 			// refer to SqlSetOption#unparseAlterOperation
 			if (setNode.getValue() != null) {
-				cmd = SqlCommand.SET;
-				operands = new String[] { setNode.getName().toString(), setNode.getValue().toString() };
+				operands = new String[] { setNode.getKeyString(), setNode.getValueString() };
 			} else {
-				cmd = SqlCommand.RESET;
-				if (setNode.getName().toString().toUpperCase().equals("ALL")) {
-					operands = new String[0];
-				} else {
-					operands = new String[] { setNode.getName().toString() };
-				}
+				operands = new String[0];
 			}
+		} else if (node instanceof SqlReset) {
+			SqlReset resetNode = (SqlReset) node;
+			cmd = SqlCommand.RESET;
+			if (resetNode.getKey() != null) {
+				operands = new String[] { resetNode.getKeyString() };
+			} else {
+				operands = new String[0];
+			}
+
 		} else {
 			cmd = null;
 			operands = new String[0];
