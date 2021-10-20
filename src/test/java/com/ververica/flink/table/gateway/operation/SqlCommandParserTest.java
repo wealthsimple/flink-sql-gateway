@@ -282,32 +282,32 @@ public class SqlCommandParserTest {
 
 	@Test
 	public void testReset() {
-		String query1 = "reset all";
+		String query1 = "reset";
 		checkCommand(query1, SqlCommand.RESET);
 
-		String query2 = "reset execution.parallelism";
+		String query2 = "reset 'execution.parallelism'";
 		checkCommand(query2, SqlCommand.RESET, "execution.parallelism");
 
-		String query3 = "\n -- comments \n reset \n -- comments \n all \n -- comments \n";
+		String query3 = "\n -- comments \n reset \n -- comments \n -- comments \n";
 		checkCommand(query3, SqlCommand.RESET);
 
-		String query4 = "\n -- comments \n reset \n -- comments \n execution.parallelism \n -- comments \n";
+		String query4 = "\n -- comments \n reset \n -- comments \n 'execution.parallelism' \n -- comments \n";
 		checkCommand(query4, SqlCommand.RESET, "execution.parallelism");
 	}
 
 	@Test
 	public void testSet() {
-		String query1 = "set execution.parallelism=10";
+		String query1 = "set 'execution.parallelism'='10'";
 		checkCommand(query1, SqlCommand.SET, "execution.parallelism", "10");
 
 		String query2 = "set";
 		checkCommand(query2, SqlCommand.SET);
 
-		String query3 = "set `a.b-c_d`=`e-f_g.h`";
+		String query3 = "set 'a.b-c_d'='e-f_g.h'";
 		checkCommand(query3, SqlCommand.SET, "a.b-c_d", "e-f_g.h");
 
-		String query4 = "\n -- comments \n set \n -- comments \n execution.parallelism \n" +
-			" -- comments \n = \n -- comments \n 10";
+		String query4 = "\n -- comments \n set \n -- comments \n 'execution.parallelism' \n" +
+			" -- comments \n = \n -- comments \n '10'";
 		checkCommand(query4, SqlCommand.SET, "execution.parallelism", "10");
 	}
 
