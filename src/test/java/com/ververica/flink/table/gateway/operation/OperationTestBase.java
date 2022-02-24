@@ -55,14 +55,14 @@ public class OperationTestBase {
 			new Environment(),
 			Collections.emptyList(),
 			new Configuration(),
-			new DefaultCLI(new Configuration()),
+			new DefaultCLI(),
 			new DefaultClusterClientServiceLoader());
 	}
 
 	protected Environment getSessionEnvironment() throws Exception {
 		Map<String, String> newProperties = new HashMap<>();
 		newProperties.put(Environment.EXECUTION_ENTRY + "." + ExecutionEntry.EXECUTION_PLANNER, "blink");
-		newProperties.put(Environment.EXECUTION_ENTRY + "." + ExecutionEntry.EXECUTION_TYPE, "batch");
+		newProperties.put(Environment.EXECUTION_ENTRY + "." + ExecutionEntry.EXECUTION_TYPE, "streaming");
 		return Environment.enrich(new Environment(), newProperties, Collections.emptyMap());
 	}
 

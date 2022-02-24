@@ -22,6 +22,7 @@ import com.ververica.flink.table.gateway.config.Environment;
 import com.ververica.flink.table.gateway.config.entries.ExecutionEntry;
 import com.ververica.flink.table.gateway.context.DefaultContext;
 import com.ververica.flink.table.gateway.context.SessionContext;
+import com.ververica.flink.table.gateway.operation.SelectOperation;
 import com.ververica.flink.table.gateway.utils.SqlGatewayException;
 
 import org.slf4j.Logger;
@@ -129,6 +130,12 @@ public class SessionManager {
 
 	public void closeSession(String sessionId) {
 		Session session = getSession(sessionId);
+		session.getJobs().forEach((jobID, jobOperation) -> {
+			if (jobOperation instanceof SelectOperation) {
+				// if job is SelectOperation, cancel it before session close
+				session.cancelJob(jobID);
+			}
+		});
 		closeSession(session);
 	}
 

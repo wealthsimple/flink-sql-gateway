@@ -34,7 +34,7 @@ import java.util.Set;
 
 import static com.ververica.flink.table.gateway.config.entries.CatalogEntry.CATALOG_NAME;
 import static com.ververica.flink.table.gateway.config.entries.ModuleEntry.MODULE_NAME;
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
+import static org.apache.flink.table.catalog.CommonCatalogOptions.CATALOG_TYPE;
 import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -138,7 +138,7 @@ public class EnvironmentTest {
 		Map<String, Object> prop = new HashMap<>();
 
 		prop.put(CATALOG_NAME, name);
-		prop.put(CATALOG_TYPE, type);
+		prop.put(CATALOG_TYPE.key(), type);
 
 		return prop;
 	}

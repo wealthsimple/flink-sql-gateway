@@ -26,10 +26,13 @@ import org.apache.flink.sql.parser.ddl.SqlCreateView;
 import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
 import org.apache.flink.sql.parser.ddl.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.SqlDropView;
+import org.apache.flink.sql.parser.ddl.SqlReset;
+import org.apache.flink.sql.parser.ddl.SqlSet;
 import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
 import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
+import org.apache.flink.sql.parser.dql.SqlRichExplain;
 import org.apache.flink.sql.parser.dql.SqlShowCatalogs;
 import org.apache.flink.sql.parser.dql.SqlShowDatabases;
 import org.apache.flink.sql.parser.dql.SqlShowFunctions;
@@ -39,11 +42,9 @@ import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.sql.SqlDrop;
-import org.apache.calcite.sql.SqlExplain;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlSetOption;
 import org.apache.calcite.sql.parser.SqlParser;
 
 import java.lang.reflect.Field;
@@ -194,7 +195,7 @@ public final class SqlCommandParser {
 			operands = new String[0];
 		} else if (node instanceof SqlUseCatalog) {
 			cmd = SqlCommand.USE_CATALOG;
-			operands = new String[] { ((SqlUseCatalog) node).getCatalogName() };
+			operands = new String[] { ((SqlUseCatalog) node).getCatalogName().toString() };
 		} else if (node instanceof SqlUseDatabase) {
 			cmd = SqlCommand.USE;
 			operands = new String[] { ((SqlUseDatabase) node).getDatabaseName().toString() };
@@ -205,24 +206,27 @@ public final class SqlCommandParser {
 			String escapedName =
 				Stream.of(fullTableName).map(s -> "`" + s + "`").collect(Collectors.joining("."));
 			operands = new String[] { escapedName };
-		} else if (node instanceof SqlExplain) {
+		} else if (node instanceof SqlRichExplain) {
 			cmd = SqlCommand.EXPLAIN;
-			// TODO support explain details
-			operands = new String[] { ((SqlExplain) node).getExplicandum().toString() };
-		} else if (node instanceof SqlSetOption) {
-			SqlSetOption setNode = (SqlSetOption) node;
+			operands = new String[] { ((SqlRichExplain) node).getStatement().toString() };
+		} else if (node instanceof SqlSet) {
+			SqlSet setNode = (SqlSet) node;
+			cmd = SqlCommand.SET;
 			// refer to SqlSetOption#unparseAlterOperation
 			if (setNode.getValue() != null) {
-				cmd = SqlCommand.SET;
-				operands = new String[] { setNode.getName().toString(), setNode.getValue().toString() };
+				operands = new String[] { setNode.getKeyString(), setNode.getValueString() };
 			} else {
-				cmd = SqlCommand.RESET;
-				if (setNode.getName().toString().toUpperCase().equals("ALL")) {
-					operands = new String[0];
-				} else {
-					operands = new String[] { setNode.getName().toString() };
-				}
+				operands = new String[0];
 			}
+		} else if (node instanceof SqlReset) {
+			SqlReset resetNode = (SqlReset) node;
+			cmd = SqlCommand.RESET;
+			if (resetNode.getKey() != null) {
+				operands = new String[] { resetNode.getKeyString() };
+			} else {
+				operands = new String[0];
+			}
+
 		} else {
 			cmd = null;
 			operands = new String[0];
@@ -330,6 +334,10 @@ public final class SqlCommandParser {
 		SHOW_VIEWS(
 			"SHOW\\s+VIEWS",
 			NO_OPERANDS),
+
+		STATEMENT_SET(
+				"BEGIN\\s+STATEMENT\\s+SET;\\s*((?:INSERT.*?;)+)\\s*END",
+				(operands) -> Optional.of(operands)),
 
 		// the following commands are not supported by SQL parser but are needed by JDBC driver
 		// these should not be exposed to the user and should be used internally

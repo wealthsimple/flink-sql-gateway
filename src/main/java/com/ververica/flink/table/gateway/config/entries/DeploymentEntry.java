@@ -57,6 +57,8 @@ public class DeploymentEntry extends ConfigEntry {
 
 	private static final String DEPLOYMENT_GATEWAY_PORT = "gateway-port";
 
+	public static final String DEPLOYMENT_DYNAMIC_FLINK_CONF = "dynamic-flink-conf";
+
 	private DeploymentEntry(DescriptorProperties properties) {
 		super(properties);
 	}

@@ -196,13 +196,11 @@ public class SelectOperation extends AbstractJobOperation {
 				executionContext.getFlinkConfig(),
 				executionContext.getEnvironment(),
 				removeTimeAttributes(table.getSchema()),
-				executionContext.getExecutionConfig(),
-				executionContext.getClassLoader());
+				executionContext.getExecutionConfig());
 		} else {
 			result = ResultUtil.createBatchResult(
 				removeTimeAttributes(table.getSchema()),
-				executionContext.getExecutionConfig(),
-				executionContext.getClassLoader());
+				executionContext.getExecutionConfig());
 		}
 
 		String jobName = getJobName(query);
@@ -211,11 +209,11 @@ public class SelectOperation extends AbstractJobOperation {
 		try {
 			// writing to a sink requires an optimization step that might reference UDFs during code compilation
 			executionContext.wrapClassLoader(() -> {
-				executionContext.getTableEnvironment().registerTableSink(tableName, result.getTableSink());
+				executionContext.getTableEnvironment().registerTableSinkInternal(tableName, result.getTableSink());
 				table.insertInto(tableName);
 				return null;
 			});
-			pipeline = executionContext.createPipeline(jobName);
+			pipeline = executionContext.wrapClassLoader(() -> executionContext.createPipeline(jobName));
 		} catch (Throwable t) {
 			// the result needs to be closed as long as
 			// it not stored in the result store
@@ -239,7 +237,8 @@ public class SelectOperation extends AbstractJobOperation {
 		configuration.set(DeploymentOptions.SHUTDOWN_IF_ATTACHED, true);
 
 		// create execution
-		final ProgramDeployer deployer = new ProgramDeployer(configuration, jobName, pipeline);
+		final ProgramDeployer deployer = new ProgramDeployer(
+				configuration, jobName, pipeline, context.getExecutionContext().getClassLoader());
 
 		JobClient jobClient;
 		// blocking deployment

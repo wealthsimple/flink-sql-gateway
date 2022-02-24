@@ -26,6 +26,7 @@ import com.ververica.flink.table.gateway.config.entries.SourceSinkTableEntry;
 import com.ververica.flink.table.gateway.config.entries.SourceTableEntry;
 import com.ververica.flink.table.gateway.config.entries.TemporalTableEntry;
 import com.ververica.flink.table.gateway.config.entries.ViewEntry;
+import com.ververica.flink.table.gateway.utils.PipelineOptimizer;
 import com.ververica.flink.table.gateway.utils.SqlExecutionException;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -45,12 +46,12 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.bridge.java.internal.BatchTableEnvironmentImpl;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
+import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
@@ -62,8 +63,8 @@ import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.descriptors.CoreModuleDescriptorValidator;
 import org.apache.flink.table.factories.BatchTableSinkFactory;
 import org.apache.flink.table.factories.BatchTableSourceFactory;
-import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.ComponentFactoryService;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.factories.TableSinkFactory;
@@ -100,6 +101,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.ververica.flink.table.gateway.config.Environment.CONFIGURATION_ENTRY;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -120,7 +122,7 @@ public class ExecutionContext<ClusterID> {
 	private final Configuration flinkConfig;
 	private final ClusterClientFactory<ClusterID> clusterClientFactory;
 
-	private TableEnvironment tableEnv;
+	private TableEnvironmentInternal tableEnv;
 	private ExecutionEnvironment execEnv;
 	private StreamExecutionEnvironment streamExecEnv;
 	private Executor executor;
@@ -212,7 +214,7 @@ public class ExecutionContext<ClusterID> {
 		}
 	}
 
-	public TableEnvironment getTableEnvironment() {
+	public TableEnvironmentInternal getTableEnvironment() {
 		return tableEnv;
 	}
 
@@ -230,13 +232,15 @@ public class ExecutionContext<ClusterID> {
 
 	public Pipeline createPipeline(String name) {
 		return wrapClassLoader(() -> {
+			Pipeline pipeline = null;
 			if (streamExecEnv != null) {
 				StreamTableEnvironmentImpl streamTableEnv = (StreamTableEnvironmentImpl) tableEnv;
-				return streamTableEnv.getPipeline(name);
+				pipeline = streamTableEnv.getPipeline(name);
 			} else {
 				BatchTableEnvironmentImpl batchTableEnv = (BatchTableEnvironmentImpl) tableEnv;
-				return batchTableEnv.getPipeline(name);
+				pipeline = batchTableEnv.getPipeline(name);
 			}
+			return PipelineOptimizer.optimize(this, pipeline);
 		});
 	}
 
@@ -281,8 +285,7 @@ public class ExecutionContext<ClusterID> {
 			availableCommandLines,
 			activeCommandLine);
 
-		Configuration executionConfig = activeCommandLine.applyCommandLineOptionsToConfiguration(
-			commandLine);
+		Configuration executionConfig = activeCommandLine.toConfiguration(commandLine);
 
 		try {
 			final ProgramOptions programOptions = ProgramOptions.create(commandLine);
@@ -322,9 +325,11 @@ public class ExecutionContext<ClusterID> {
 	}
 
 	private Catalog createCatalog(String name, Map<String, String> catalogProperties, ClassLoader classLoader) {
-		final CatalogFactory factory =
-			TableFactoryService.find(CatalogFactory.class, catalogProperties, classLoader);
-		return factory.createCatalog(name, catalogProperties);
+		return FactoryUtil.createCatalog(
+				name,
+				catalogProperties,
+				tableEnv.getConfig().getConfiguration(),
+				classLoader);
 	}
 
 	private static TableSource<?> createTableSource(ExecutionEntry execution, Map<String, String> sourceProperties,
@@ -355,7 +360,7 @@ public class ExecutionContext<ClusterID> {
 		throw new SqlExecutionException("Unsupported execution type for sinks.");
 	}
 
-	private TableEnvironment createStreamTableEnvironment(
+	private TableEnvironmentInternal createStreamTableEnvironment(
 			StreamExecutionEnvironment env,
 			EnvironmentSettings settings,
 			TableConfig config,
@@ -476,6 +481,7 @@ public class ExecutionContext<ClusterID> {
 			streamExecEnv = createStreamExecutionEnvironment();
 			execEnv = null;
 
+			config.getConfiguration().setString("execution.runtime-mode", environment.getExecution().inStreamingMode() ? "streaming" : "batch");
 			final Map<String, String> executorProperties = settings.toExecutorProperties();
 			executor = lookupExecutor(executorProperties, streamExecEnv);
 			tableEnv = createStreamTableEnvironment(
@@ -490,6 +496,7 @@ public class ExecutionContext<ClusterID> {
 			streamExecEnv = null;
 			execEnv = createExecutionEnvironment();
 			executor = null;
+			config.getConfiguration().setString("execution.runtime-mode", "batch");
 			tableEnv = new BatchTableEnvironmentImpl(
 				execEnv,
 				config,
@@ -525,9 +532,9 @@ public class ExecutionContext<ClusterID> {
 			}
 		});
 		// register table sources
-		tableSources.forEach(tableEnv::registerTableSource);
+		tableSources.forEach(tableEnv::registerTableSourceInternal);
 		// register table sinks
-		tableSinks.forEach(tableEnv::registerTableSink);
+		tableSinks.forEach(tableEnv::registerTableSinkInternal);
 
 		//--------------------------------------------------------------------------------------------------------------
 		// Step.4 Register temporal tables.
@@ -579,6 +586,17 @@ public class ExecutionContext<ClusterID> {
 		if (env.getStreamTimeCharacteristic() == TimeCharacteristic.EventTime) {
 			env.getConfig().setAutoWatermarkInterval(environment.getExecution().getPeriodicWatermarksInterval());
 		}
+
+		final String checkpointingPrefix = CONFIGURATION_ENTRY + ".execution.checkpointing";
+		Configuration checkpointingConf = new Configuration();
+		environment.getConfiguration().asMap().forEach((k, v) -> {
+			final String normalizedKey = k.toLowerCase();
+			if (k.startsWith(checkpointingPrefix + '.')) {
+				checkpointingConf.setString(normalizedKey.substring(CONFIGURATION_ENTRY.length() + 1), v);
+			}
+		});
+		env.getCheckpointConfig().configure(checkpointingConf);
+
 		return env;
 	}
 

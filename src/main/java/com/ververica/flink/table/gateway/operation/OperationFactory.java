@@ -58,10 +58,13 @@ public class OperationFactory {
 				}
 				break;
 			case RESET:
-				if (call.operands.length > 0) {
-					throw new SqlGatewayException("Only RESET ALL is supported now");
+				// reset all properties
+				if (call.operands.length == 0) {
+					operation = new ResetOperation(context);
+				} else {
+					// reset a property
+					operation = new ResetOperation(context, call.operands[0]);
 				}
-				operation = new ResetOperation(context);
 				break;
 			case USE_CATALOG:
 				operation = new UseCatalogOperation(context, call.operands[0]);
@@ -102,6 +105,9 @@ public class OperationFactory {
 				break;
 			case EXPLAIN:
 				operation = new ExplainOperation(context, call.operands[0]);
+				break;
+			case STATEMENT_SET:
+				operation = new StatementSetOperation(context, call.operands[0]);
 				break;
 			default:
 				throw new SqlGatewayException("Unsupported command call " + call + ". This is a bug.");

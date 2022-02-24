@@ -26,10 +26,10 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.descriptors.CatalogDescriptorValidator;
 import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.types.DataType;
@@ -60,7 +60,7 @@ public class SimpleCatalogFactory implements CatalogFactory {
 	@Override
 	public Catalog createCatalog(String name, Map<String, String> properties) {
 		String database = properties.getOrDefault(
-			CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE,
+				CommonCatalogOptions.DEFAULT_DATABASE_KEY,
 			"default_database");
 		GenericInMemoryCatalog genericInMemoryCatalog = new GenericInMemoryCatalog(name, database);
 
@@ -107,12 +107,12 @@ public class SimpleCatalogFactory implements CatalogFactory {
 	@Override
 	public Map<String, String> requiredContext() {
 		Map<String, String> context = new HashMap<>();
-		context.put(CatalogDescriptorValidator.CATALOG_TYPE, CATALOG_TYPE_VALUE);
+		context.put(CommonCatalogOptions.CATALOG_TYPE.key(), CATALOG_TYPE_VALUE);
 		return context;
 	}
 
 	@Override
 	public List<String> supportedProperties() {
-		return Arrays.asList(CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE, TEST_TABLE_NAME);
+		return Arrays.asList(CommonCatalogOptions.DEFAULT_DATABASE_KEY, TEST_TABLE_NAME);
 	}
 }

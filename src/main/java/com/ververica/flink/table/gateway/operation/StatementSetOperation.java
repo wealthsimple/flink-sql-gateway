@@ -43,16 +43,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Statement;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
- * Operation for INSERT command.
+ * Operation for STATEMENT SET command. ONLY SUPPORT MULTI-INSERT.
  */
-public class InsertOperation extends AbstractJobOperation {
-	private static final Logger LOG = LoggerFactory.getLogger(InsertOperation.class);
+public class StatementSetOperation extends AbstractJobOperation {
+	private static final Logger LOG = LoggerFactory.getLogger(StatementSetOperation.class);
 
 	private final String statement;
 	// insert into sql match pattern
@@ -63,23 +64,29 @@ public class InsertOperation extends AbstractJobOperation {
 
 	private boolean fetched = false;
 
-	public InsertOperation(SessionContext context, String statement, String tableIdentifier) {
+	public StatementSetOperation(SessionContext context, String statement) {
 		super(context);
-		this.statement = statement;
+		// trim
+		String trimedStmt = statement.trim();
+		// remove ';' at the end
+		if (trimedStmt.endsWith(";")) {
+			trimedStmt = trimedStmt.substring(0, trimedStmt.length() - 1).trim();
+		}
+		this.statement = trimedStmt;
 
 		this.columnInfos = Collections.singletonList(
-			ColumnInfo.create(tableIdentifier, new BigIntType(false)));
+				ColumnInfo.create("multi-insert-table", new BigIntType(false)));
 	}
 
 	@Override
 	public ResultSet execute() {
-		jobId = executeUpdateInternal(context.getExecutionContext());
+		jobId = executeMultiInsert(context.getExecutionContext());
 		String strJobId = jobId.toString();
 		return ResultSet.builder()
-			.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-			.columns(ColumnInfo.create(ConstantNames.JOB_ID, new VarCharType(false, strJobId.length())))
-			.data(Row.of(strJobId))
-			.build();
+				.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+				.columns(ColumnInfo.create(ConstantNames.JOB_ID, new VarCharType(false, strJobId.length())))
+				.data(Row.of(strJobId))
+				.build();
 	}
 
 	@Override
@@ -118,24 +125,25 @@ public class InsertOperation extends AbstractJobOperation {
 		clusterDescriptorAdapter.cancelJob();
 	}
 
-	private <C> JobID executeUpdateInternal(ExecutionContext<C> executionContext) {
+	private <C> JobID executeMultiInsert(ExecutionContext<C> executionContext) {
 		TableEnvironment tableEnv = executionContext.getTableEnvironment();
 		// parse and validate statement
 		try {
 			executionContext.wrapClassLoader(() -> {
-				tableEnv.sqlUpdate(statement);
+				String[] stmts = statement.split(";");
+				Arrays.stream(stmts).forEach(stmt -> {
+					if (!INSERT_SQL_PATTERN.matcher(stmt.trim()).matches()) {
+						LOG.error("Session: {}. Only insert is supported now.", sessionId);
+						throw new SqlExecutionException("Only insert is supported now");
+					}
+				});
+				Arrays.stream(stmts).forEach(stmt -> tableEnv.sqlUpdate(stmt));
 				return null;
 			});
 		} catch (Throwable t) {
 			LOG.error(String.format("Session: %s. Invalid SQL query.", sessionId), t);
 			// catch everything such that the statement does not crash the executor
-			throw new SqlExecutionException("Invalid SQL update statement.", t);
-		}
-
-		//Todo: we should refactor following condition after TableEnvironment has support submit job directly.
-		if (!INSERT_SQL_PATTERN.matcher(statement.trim()).matches()) {
-			LOG.error("Session: {}. Only insert is supported now.", sessionId);
-			throw new SqlExecutionException("Only insert is supported now");
+			throw new SqlExecutionException("Invalid SQL multi-insert statement.", t);
 		}
 
 		String jobName = getJobName(statement);

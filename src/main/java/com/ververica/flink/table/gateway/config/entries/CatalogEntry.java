@@ -20,13 +20,12 @@ package com.ververica.flink.table.gateway.config.entries;
 
 import com.ververica.flink.table.gateway.config.ConfigUtil;
 
+import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.factories.FactoryUtil;
 
 import java.util.Collections;
 import java.util.Map;
-
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_PROPERTY_VERSION;
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
 
 /**
  * Describes a catalog configuration entry.
@@ -48,8 +47,8 @@ public class CatalogEntry extends ConfigEntry {
 
 	@Override
 	protected void validate(DescriptorProperties properties) {
-		properties.validateString(CATALOG_TYPE, false, 1);
-		properties.validateInt(CATALOG_PROPERTY_VERSION, true, 0);
+		properties.validateString(CommonCatalogOptions.CATALOG_TYPE.key(), false, 1);
+		properties.validateInt(FactoryUtil.PROPERTY_VERSION.key(), true, 0);
 
 		// further validation is performed by the discovered factory
 	}
