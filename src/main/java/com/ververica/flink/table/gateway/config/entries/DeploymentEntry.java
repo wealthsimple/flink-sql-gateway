@@ -24,6 +24,8 @@ import com.ververica.flink.table.gateway.config.Environment;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Maps;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
@@ -31,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +60,7 @@ public class DeploymentEntry extends ConfigEntry {
 
 	private static final String DEPLOYMENT_GATEWAY_PORT = "gateway-port";
 
-	public static final String DEPLOYMENT_DYNAMIC_FLINK_CONF = "dynamic-flink-conf";
+	private static final String DEPLOYMENT_DYNAMIC_FLINK_CONF = "dynamic-flink-conf";
 
 	private DeploymentEntry(DescriptorProperties properties) {
 		super(properties);
@@ -83,6 +86,21 @@ public class DeploymentEntry extends ConfigEntry {
 	public int getGatewayPort() {
 		return properties.getOptionalInt(DEPLOYMENT_GATEWAY_PORT)
 			.orElseGet(() -> useDefaultValue(DEPLOYMENT_GATEWAY_PORT, 0));
+	}
+
+	public Map<String, String> getDynamicFlinkConf() {
+		String dynamicFlinkConfStr = properties.getOptionalString(DEPLOYMENT_DYNAMIC_FLINK_CONF).orElse("");
+		Map<String, String> dynamicFlinkConfMap = Maps.newHashMap();
+
+		String[] conf = dynamicFlinkConfStr.split(";");
+		Arrays.stream(conf).forEach(kvStr -> {
+				String[] kv = kvStr.split("=");
+					if (kv.length == 2 && !"".equals(kv[0].trim()) && !"".equals(kv[1].trim())) {
+						dynamicFlinkConfMap.put(kv[0], kv[1]);
+					}
+				}
+		);
+		return dynamicFlinkConfMap;
 	}
 
 	/**

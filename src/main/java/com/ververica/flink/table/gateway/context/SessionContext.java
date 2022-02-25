@@ -19,7 +19,6 @@
 package com.ververica.flink.table.gateway.context;
 
 import com.ververica.flink.table.gateway.config.Environment;
-import com.ververica.flink.table.gateway.config.entries.DeploymentEntry;
 import com.ververica.flink.table.gateway.config.entries.ExecutionEntry;
 import com.ververica.flink.table.gateway.utils.SqlGatewayException;
 
@@ -32,7 +31,6 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -101,19 +99,10 @@ public class SessionContext {
 			}
 		}
 
-		// dynamic apply flink conf from DeploymentEntry
 		Configuration flinkConfig = defaultContext.getFlinkConfig();
-		Map<String, String> deploymentProperties = sessionEnv.getDeployment().asMap();
-		if (deploymentProperties.containsKey(DeploymentEntry.DEPLOYMENT_DYNAMIC_FLINK_CONF)) {
-			String dynamicFlinkConf = deploymentProperties.get(DeploymentEntry.DEPLOYMENT_DYNAMIC_FLINK_CONF);
-			String[] conf = dynamicFlinkConf.split(";");
-			Arrays.stream(conf).forEach(c -> {
-				String[] kv = c.split("=");
-				if (kv.length == 2 && !"".equals(kv[0]) && !"".equals(kv[1])) {
-					flinkConfig.setString(kv[0], kv[1]);
-				}
-			});
-		}
+
+		// dynamic apply flink conf from DeploymentEntry
+		sessionEnv.getDeployment().getDynamicFlinkConf().forEach(flinkConfig::setString);
 
 		return ExecutionContext.builder(
 			defaultContext.getDefaultEnv(),
