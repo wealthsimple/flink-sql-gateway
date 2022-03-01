@@ -587,15 +587,17 @@ public class ExecutionContext<ClusterID> {
 			env.getConfig().setAutoWatermarkInterval(environment.getExecution().getPeriodicWatermarksInterval());
 		}
 
-		final String checkpointingPrefix = CONFIGURATION_ENTRY + ".execution.checkpointing";
-		Configuration checkpointingConf = new Configuration();
-		environment.getConfiguration().asMap().forEach((k, v) -> {
-			final String normalizedKey = k.toLowerCase();
-			if (k.startsWith(checkpointingPrefix + '.')) {
-				checkpointingConf.setString(normalizedKey.substring(CONFIGURATION_ENTRY.length() + 1), v);
-			}
-		});
-		env.getCheckpointConfig().configure(checkpointingConf);
+		if (environment.getExecution().inStreamingMode()) {
+			final String checkpointingPrefix = CONFIGURATION_ENTRY + ".execution.checkpointing";
+			Configuration checkpointingConf = new Configuration();
+			environment.getConfiguration().asMap().forEach((k, v) -> {
+				final String normalizedKey = k.toLowerCase();
+				if (k.startsWith(checkpointingPrefix + '.')) {
+					checkpointingConf.setString(normalizedKey.substring(CONFIGURATION_ENTRY.length() + 1), v);
+				}
+			});
+			env.getCheckpointConfig().configure(checkpointingConf);
+		}
 
 		return env;
 	}
