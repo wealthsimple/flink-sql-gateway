@@ -117,7 +117,7 @@ public class DeploymentEntry extends ConfigEntry {
 				final String argument = "--" + o.getLongOpt();
 				// options without args
 				if (!o.hasArg()) {
-					final Boolean flag = Boolean.parseBoolean(v);
+					final boolean flag = Boolean.parseBoolean(v);
 					// add key only
 					if (flag) {
 						args.add(argument);
@@ -134,8 +134,7 @@ public class DeploymentEntry extends ConfigEntry {
 				}
 			}
 		});
-
-		return CliFrontendParser.parse(commandLineOptions, args.toArray(new String[args.size()]), true);
+		return CliFrontendParser.parse(commandLineOptions, args.toArray(new String[0]), true);
 	}
 
 	private <V> V useDefaultValue(String key, V defaultValue) {

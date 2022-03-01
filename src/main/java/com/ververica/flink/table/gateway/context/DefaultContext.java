@@ -62,6 +62,7 @@ public class DefaultContext {
 
 			// load the global configuration
 			this.flinkConfig = GlobalConfiguration.loadConfiguration(flinkConfigDir);
+			defaultEnv.getDeployment().getDynamicFlinkConf().forEach(flinkConfig::setString);
 
 			// initialize default file system
 			FileSystem.initialize(flinkConfig, PluginUtils.createPluginManagerFromRootFolder(flinkConfig));
