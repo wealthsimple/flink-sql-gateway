@@ -49,7 +49,6 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.api.bridge.java.internal.BatchTableEnvironmentImpl;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.Catalog;
@@ -232,14 +231,8 @@ public class ExecutionContext<ClusterID> {
 
 	public Pipeline createPipeline(String name) {
 		return wrapClassLoader(() -> {
-			Pipeline pipeline = null;
-			if (streamExecEnv != null) {
-				StreamTableEnvironmentImpl streamTableEnv = (StreamTableEnvironmentImpl) tableEnv;
-				pipeline = streamTableEnv.getPipeline(name);
-			} else {
-				BatchTableEnvironmentImpl batchTableEnv = (BatchTableEnvironmentImpl) tableEnv;
-				pipeline = batchTableEnv.getPipeline(name);
-			}
+			StreamTableEnvironmentImpl streamTableEnv = (StreamTableEnvironmentImpl) tableEnv;
+			Pipeline pipeline = streamTableEnv.getPipeline(name);
 			return PipelineOptimizer.optimize(this, pipeline);
 		});
 	}
@@ -477,14 +470,13 @@ public class ExecutionContext<ClusterID> {
 			CatalogManager catalogManager,
 			ModuleManager moduleManager,
 			FunctionCatalog functionCatalog) {
-		if (environment.getExecution().isStreamingPlanner()) {
-			streamExecEnv = createStreamExecutionEnvironment();
-			execEnv = null;
+		streamExecEnv = createStreamExecutionEnvironment();
+		execEnv = null;
 
-			config.getConfiguration().setString("execution.runtime-mode", environment.getExecution().inStreamingMode() ? "streaming" : "batch");
-			final Map<String, String> executorProperties = settings.toExecutorProperties();
-			executor = lookupExecutor(executorProperties, streamExecEnv);
-			tableEnv = createStreamTableEnvironment(
+		config.getConfiguration().setString("execution.runtime-mode", environment.getExecution().inStreamingMode() ? "streaming" : "batch");
+		final Map<String, String> executorProperties = settings.toExecutorProperties();
+		executor = lookupExecutor(executorProperties, streamExecEnv);
+		tableEnv = createStreamTableEnvironment(
 				streamExecEnv,
 				settings,
 				config,
@@ -492,19 +484,6 @@ public class ExecutionContext<ClusterID> {
 				catalogManager,
 				moduleManager,
 				functionCatalog);
-		} else if (environment.getExecution().isBatchPlanner()) {
-			streamExecEnv = null;
-			execEnv = createExecutionEnvironment();
-			executor = null;
-			config.getConfiguration().setString("execution.runtime-mode", "batch");
-			tableEnv = new BatchTableEnvironmentImpl(
-				execEnv,
-				config,
-				catalogManager,
-				moduleManager);
-		} else {
-			throw new SqlExecutionException("Unsupported execution type specified.");
-		}
 	}
 
 	private void initializeCatalogs() {
@@ -568,13 +547,6 @@ public class ExecutionContext<ClusterID> {
 		// Switch to the current database.
 		Optional<String> database = environment.getExecution().getCurrentDatabase();
 		database.ifPresent(tableEnv::useDatabase);
-	}
-
-	private ExecutionEnvironment createExecutionEnvironment() {
-		final ExecutionEnvironment execEnv = ExecutionEnvironment.getExecutionEnvironment();
-		execEnv.setRestartStrategy(environment.getExecution().getRestartStrategy());
-		execEnv.setParallelism(environment.getExecution().getParallelism());
-		return execEnv;
 	}
 
 	private StreamExecutionEnvironment createStreamExecutionEnvironment() {
