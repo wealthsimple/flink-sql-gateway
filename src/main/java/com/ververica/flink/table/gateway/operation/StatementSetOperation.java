@@ -34,6 +34,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -67,12 +68,12 @@ public class StatementSetOperation extends AbstractJobOperation {
 	public StatementSetOperation(SessionContext context, String statement) {
 		super(context);
 		// trim
-		String trimedStmt = statement.trim();
+		String trimmedStmt = statement.trim();
 		// remove ';' at the end
-		if (trimedStmt.endsWith(";")) {
-			trimedStmt = trimedStmt.substring(0, trimedStmt.length() - 1).trim();
+		if (trimmedStmt.endsWith(";")) {
+			trimmedStmt = trimmedStmt.substring(0, trimmedStmt.length() - 1).trim();
 		}
-		this.statement = trimedStmt;
+		this.statement = trimmedStmt;
 
 		this.columnInfos = Collections.singletonList(
 				ColumnInfo.create("multi-insert-table", new BigIntType(false)));
@@ -98,7 +99,7 @@ public class StatementSetOperation extends AbstractJobOperation {
 			// while for per-job mode, JM will be also destroy after the job is finished.
 			// so it's hard to say whether the job is finished/canceled
 			// or the job status is just inaccessible at that moment.
-			// currently only yarn-per-job is supported,
+			// Currently, only yarn-per-job is supported,
 			// and if the exception (thrown when getting job status) contains ApplicationNotFoundException,
 			// we can say the job is finished.
 			boolean isGloballyTerminalState = clusterDescriptorAdapter.isGloballyTerminalState();
@@ -131,13 +132,16 @@ public class StatementSetOperation extends AbstractJobOperation {
 		try {
 			executionContext.wrapClassLoader(() -> {
 				String[] stmts = statement.split(";");
+				StatementSet statementSet = tableEnv.createStatementSet();
 				Arrays.stream(stmts).forEach(stmt -> {
 					if (!INSERT_SQL_PATTERN.matcher(stmt.trim()).matches()) {
 						LOG.error("Session: {}. Only insert is supported now.", sessionId);
 						throw new SqlExecutionException("Only insert is supported now");
+					} else {
+						// Validate the statements by only adding them to the statement set
+						statementSet.addInsertSql(stmt);
 					}
 				});
-				Arrays.stream(stmts).forEach(stmt -> tableEnv.sqlUpdate(stmt));
 				return null;
 			});
 		} catch (Throwable t) {
