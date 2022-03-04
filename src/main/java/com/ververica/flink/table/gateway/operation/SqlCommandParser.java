@@ -20,6 +20,7 @@ package com.ververica.flink.table.gateway.operation;
 
 import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
 import org.apache.flink.sql.parser.ddl.SqlAlterTable;
+import org.apache.flink.sql.parser.ddl.SqlCreateCatalog;
 import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlCreateView;
@@ -226,7 +227,9 @@ public final class SqlCommandParser {
 			} else {
 				operands = new String[0];
 			}
-
+		} else if (node instanceof SqlCreateCatalog) {
+			cmd = SqlCommand.CREATE_CATALOG;
+			operands = new String[] { stmt };
 		} else {
 			cmd = null;
 			operands = new String[0];
@@ -291,6 +294,8 @@ public final class SqlCommandParser {
 		DROP_VIEW,
 
 		CREATE_DATABASE,
+
+		CREATE_CATALOG,
 
 		ALTER_DATABASE,
 

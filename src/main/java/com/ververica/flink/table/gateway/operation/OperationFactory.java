@@ -45,6 +45,7 @@ public class OperationFactory {
 			case ALTER_TABLE:
 			case CREATE_DATABASE:
 			case DROP_DATABASE:
+			case CREATE_CATALOG:
 			case ALTER_DATABASE:
 				operation = new DDLOperation(context, call.operands[0], call.command);
 				break;
