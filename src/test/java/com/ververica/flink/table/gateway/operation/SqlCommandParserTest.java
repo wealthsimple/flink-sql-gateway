@@ -208,6 +208,15 @@ public class SqlCommandParserTest {
 	}
 
 	@Test
+	public void testDropCatalog() {
+		String query1 = "drop catalog MyCat;";
+		checkCommand(query1, SqlCommand.DROP_CATALOG, query1);
+
+		String query2 = " \n -- single-line comment \n drop \n catalog \n MyCat;";
+		checkCommand(query2, SqlCommand.DROP_CATALOG, query2);
+	}
+
+	@Test
 	public void testUseDatabase() {
 		String query1 = "use MyCat.MyDb";
 		checkCommand(query1, SqlCommand.USE, "MyCat.MyDb");

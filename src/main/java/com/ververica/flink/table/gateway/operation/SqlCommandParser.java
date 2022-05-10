@@ -24,6 +24,7 @@ import org.apache.flink.sql.parser.ddl.SqlCreateCatalog;
 import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlCreateView;
+import org.apache.flink.sql.parser.ddl.SqlDropCatalog;
 import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
 import org.apache.flink.sql.parser.ddl.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.SqlDropView;
@@ -185,6 +186,9 @@ public final class SqlCommandParser {
 		} else if (node instanceof SqlDropDatabase) {
 			cmd = SqlCommand.DROP_DATABASE;
 			operands = new String[] { stmt };
+		} else if (node instanceof SqlDropCatalog) {
+			cmd = SqlCommand.DROP_CATALOG;
+			operands = new String[] { stmt };
 		} else if (node instanceof SqlAlterDatabase) {
 			cmd = SqlCommand.ALTER_DATABASE;
 			operands = new String[] { stmt };
@@ -300,6 +304,8 @@ public final class SqlCommandParser {
 		ALTER_DATABASE,
 
 		DROP_DATABASE,
+
+		DROP_CATALOG,
 
 		USE_CATALOG,
 
